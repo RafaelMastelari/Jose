@@ -146,6 +146,44 @@ function parseLineLocally(line: string, context: ParsingContext): Transaction | 
         return null
     }
 
+    // PATTERN 0: Natural Language Input (PRIORITY!)
+    // Example: "hoje gasolina 50" or "26.01 coxinha 2,5" or "ontem uber 15,50"
+    const naturalPattern = /^(hoje|ontem|\d{1,2}[\/.]\d{1,2}(?:[\/.]\d{2,4})?)\s+(.+?)\s+((?:R\$\s?)?-?[\d]+(?:[.,]\d{1,2})?)$/i
+    const naturalMatch = trimmed.match(naturalPattern)
+    if (naturalMatch) {
+        const dateInput = naturalMatch[1].toLowerCase()
+        let date: string
+
+        if (dateInput === 'hoje') {
+            const today = new Date()
+            date = today.toISOString().split('T')[0]
+        } else if (dateInput === 'ontem') {
+            const yesterday = new Date()
+            yesterday.setDate(yesterday.getDate() - 1)
+            date = yesterday.toISOString().split('T')[0]
+        } else {
+            // Parse DD.MM or DD/MM format
+            const dateParts = dateInput.split(/[\/.]/)
+            if (dateParts.length >= 2) {
+                const day = dateParts[0].padStart(2, '0')
+                const month = dateParts[1].padStart(2, '0')
+                const year = dateParts[2] ? (dateParts[2].length === 2 ? `20${dateParts[2]}` : dateParts[2]) : new Date().getFullYear().toString()
+                date = `${year}-${month}-${day}`
+            } else {
+                return null
+            }
+        }
+
+        const description = naturalMatch[2].trim()
+        const amount = parseAmountBR(naturalMatch[3])
+
+        if (amount !== null && amount > 0) {
+            const { type, category } = categorizeByKeyword(description)
+            console.log('✅ Natural input parsed:', { date, description, amount, type, category })
+            return { date, description, amount, type, category }
+        }
+    }
+
     // PATTERN 1: Nubank CSV Format
     // Example: "21/01/2026,-46.00,card_not_present,Compra no débito - Sonda..."
     const csvPattern = /^(\d{2}\/\d{2}\/\d{4}),(-?\d+\.\d{2}),[^,]+,(.+)$/

@@ -66,11 +66,18 @@ export default async function DashboardPage() {
     const currentBalance = totalIncome - totalExpenses
     const monthlySpending = totalExpenses
 
-    // Get recent 5 transactions
-    const recentTransactions = transactions?.slice(0, 5) || []
+    // Get recent transactions from ALL TIME (not just current month) for Activity widget
+    const { data: allTimeRecent } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('date', { ascending: false })
+        .limit(5)
+
+    const recentTransactions = allTimeRecent || []
 
     // Check if user has any data
-    const hasData = transactions && transactions.length > 0
+    const hasData = recentTransactions.length > 0
 
     // Format currency
     const formatCurrency = (value: number) => {
