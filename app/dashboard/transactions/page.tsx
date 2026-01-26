@@ -18,36 +18,6 @@ interface Transaction {
     updated_at: string
 }
 
-// Helper to get category icon
-function getCategoryIcon(category: string, type: string) {
-    if (type === 'income') return 'trending_up'
-    if (type === 'investment') return 'grain'
-    if (type === 'transfer') return 'sync_alt'
-
-    const categoryMap: Record<string, string> = {
-        'Alimentação': 'restaurant',
-        'Transporte': 'directions_car',
-        'Lazer': 'movie',
-        'Moradia': 'home',
-        'Saúde': 'medical_services',
-        'Educação': 'school',
-        'Salário': 'payments',
-        'Freelance': 'work',
-    }
-    return categoryMap[category] || 'shopping_cart'
-}
-
-// Helper to get category color
-function getCategoryColor(type: string) {
-    const colorMap: Record<string, string> = {
-        'income': 'green',
-        'expense': 'red',
-        'investment': 'blue',
-        'transfer': 'amber',
-    }
-    return colorMap[type] || 'gray'
-}
-
 export default function TransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
