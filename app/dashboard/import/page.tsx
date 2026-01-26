@@ -123,8 +123,8 @@ export default function ImportPage() {
                     <button
                         onClick={() => setActiveTab('paste')}
                         className={`flex-1 py-3 px-4 rounded-md font-medium transition-all ${activeTab === 'paste'
-                                ? 'bg-teal text-white'
-                                : 'text-charcoal hover:bg-gray-100'
+                            ? 'bg-teal text-white'
+                            : 'text-charcoal hover:bg-gray-100'
                             }`}
                     >
                         <span className="material-symbols-outlined text-sm align-middle mr-2">
@@ -135,8 +135,8 @@ export default function ImportPage() {
                     <button
                         onClick={() => setActiveTab('upload')}
                         className={`flex-1 py-3 px-4 rounded-md font-medium transition-all ${activeTab === 'upload'
-                                ? 'bg-teal text-white'
-                                : 'text-charcoal hover:bg-gray-100'
+                            ? 'bg-teal text-white'
+                            : 'text-charcoal hover:bg-gray-100'
                             }`}
                         disabled
                     >
@@ -280,7 +280,7 @@ Exemplo:
                         <button
                             onClick={handleAnalyze}
                             disabled={isAnalyzing || !extractText.trim()}
-                            className="w-full bg-teal hover:bg-teal/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
+                            className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
                         >
                             {isAnalyzing ? (
                                 <>
