@@ -79,7 +79,7 @@ export default function ImportPage() {
             if (result.success) {
                 setSuccess(result.message || 'Arquivo processado com sucesso!')
                 setPreviewTransactions(result.transactions || [])
-                setDuplicates(result.duplicates || [])
+                setDuplicates((result as any).duplicates || [])
 
                 // Redirect to dashboard after 2 seconds
                 setTimeout(() => {
@@ -325,8 +325,8 @@ Exemplo:
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
                             className={`bg-white rounded-lg shadow-sm border-2 border-dashed p-12 text-center transition-all ${isDragging
-                                    ? 'border-teal bg-teal/5 scale-[1.02]'
-                                    : 'border-gray-300 hover:border-gray-400'
+                                ? 'border-teal bg-teal/5 scale-[1.02]'
+                                : 'border-gray-300 hover:border-gray-400'
                                 }`}
                         >
                             <input

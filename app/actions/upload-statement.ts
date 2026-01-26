@@ -8,6 +8,7 @@ interface UploadResult {
     success: boolean
     message?: string
     transactions?: any[]
+    duplicates?: any[]
     error?: string
 }
 
@@ -34,11 +35,10 @@ function parseOFX(content: string): string {
             const amountMatch = block.match(/<TRNAMT>([\-\d\.]+)/)
             const amount = amountMatch ? amountMatch[1] : '0'
 
-            // Extract description (MEMO or NAME)
-            const memoMatch = block.match(/<MEMO>(.*?)</)[1] ||
-                block.match(/<NAME>(.*?)</)[1] ||
-                'Transação'
-            const description = memoMatch.trim()
+            // Extract description (MEMO or NAME) - fixed null safety
+            const memoMatch = block.match(/<MEMO>(.*?)</)
+            const nameMatch = block.match(/<NAME>(.*?)</)
+            const description = (memoMatch?.[1] || nameMatch?.[1] || 'Transação').trim()
 
             // Format as simple text line for our parser
             lines.push(`${formattedDate} - ${description} - ${amount}`)
@@ -135,7 +135,11 @@ export async function uploadStatement(formData: FormData): Promise<UploadResult>
         // Process extracted text with our existing hybrid parser
         const result = await processFinancialText(textContent)
 
-        return result
+        // Return with duplicates field
+        return {
+            ...result,
+            duplicates: result.duplicates || []
+        }
     } catch (error: any) {
         console.error('❌ Error uploading statement:', error)
         return {
