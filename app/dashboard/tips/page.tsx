@@ -101,7 +101,7 @@ export default function TipsPage() {
                                     Receba Conselhos Sábios
                                 </h3>
                                 <p className="text-[var(--color-text-sub)] mb-6">
-                                    José analisará suas finanças e oferecerá orientações práticas baseadas em sabedoria bíblica
+                                    José analisará suas finanças e oferecerá orientações práticas baseadas em sabedoria milenar
                                 </p>
                                 <button
                                     onClick={handleGenerateWisdom}
