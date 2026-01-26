@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getTransactions, updateTransaction, deleteTransaction } from '@/app/actions/transaction-actions'
+import { getTransactions, deleteTransaction } from '@/app/actions/transaction-actions'
+import EditTransactionModal from '@/app/components/EditTransactionModal'
+import { getCategoryIcon, getCategoryColor } from '@/lib/categories'
 
 interface Transaction {
     id: string
@@ -55,13 +57,6 @@ export default function TransactionsPage() {
     // Edit modal state
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-    const [editForm, setEditForm] = useState({
-        date: '',
-        description: '',
-        amount: '',
-        type: 'expense' as 'income' | 'expense' | 'investment' | 'transfer',
-        category: '',
-    })
 
     // Delete modal state
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
@@ -120,38 +115,12 @@ export default function TransactionsPage() {
     // Edit handlers
     const openEditModal = (transaction: Transaction) => {
         setEditingTransaction(transaction)
-        setEditForm({
-            date: transaction.date,
-            description: transaction.description,
-            amount: transaction.amount.toString(),
-            type: transaction.type,
-            category: transaction.category,
-        })
         setEditModalOpen(true)
     }
 
-    const handleSaveEdit = async () => {
-        if (!editingTransaction) return
-
-        setActionLoading(true)
-        setError('')
-
-        const result = await updateTransaction(editingTransaction.id, {
-            date: editForm.date,
-            description: editForm.description,
-            amount: parseFloat(editForm.amount),
-            type: editForm.type,
-            category: editForm.category,
-        })
-
-        if (result.success) {
-            setEditModalOpen(false)
-            loadTransactions()
-        } else {
-            setError(result.error || 'Erro ao atualizar')
-        }
-
-        setActionLoading(false)
+    const handleEditSuccess = () => {
+        setEditModalOpen(false)
+        loadTransactions()
     }
 
     // Delete handlers
@@ -338,93 +307,11 @@ export default function TransactionsPage() {
 
             {/* Edit Modal */}
             {editModalOpen && editingTransaction && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setEditModalOpen(false)}>
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-[var(--color-text-main)]">Editar Transação</h3>
-                            <button
-                                onClick={() => setEditModalOpen(false)}
-                                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"
-                            >
-                                <span className="material-symbols-outlined text-gray-500">close</span>
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--color-text-main)] mb-2">
-                                    Descrição
-                                </label>
-                                <input
-                                    type="text"
-                                    value={editForm.description}
-                                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--color-text-main)] mb-2">
-                                    Valor (R$)
-                                </label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={editForm.amount}
-                                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--color-text-main)] mb-2">
-                                    Data
-                                </label>
-                                <input
-                                    type="date"
-                                    value={editForm.date}
-                                    onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--color-text-main)] mb-2">
-                                    Categoria
-                                </label>
-                                <input
-                                    type="text"
-                                    value={editForm.category}
-                                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                                />
-                            </div>
-
-                            {error && (
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                    <p className="text-sm text-red-900">{error}</p>
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    onClick={() => setEditModalOpen(false)}
-                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-semibold text-[var(--color-text-main)] hover:bg-gray-50 transition-colors"
-                                    disabled={actionLoading}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleSaveEdit}
-                                    disabled={actionLoading}
-                                    className="flex-1 px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50"
-                                >
-                                    {actionLoading ? 'Salvando...' : 'Salvar'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <EditTransactionModal
+                    transaction={editingTransaction}
+                    onClose={() => setEditModalOpen(false)}
+                    onSuccess={handleEditSuccess}
+                />
             )}
 
             {/* Delete Confirmation Modal */}
