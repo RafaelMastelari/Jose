@@ -156,7 +156,7 @@ export default function EditTransactionModal({ transaction, onClose, onSuccess }
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="flex-1 px-4 py-3 bg-teal hover:bg-teal/90 disabled:bg-gray-300 text-white rounded-lg transition-colors font-medium"
+                            className="flex-1 px-4 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] disabled:bg-gray-300 text-white rounded-lg transition-colors font-medium"
                         >
                             {isLoading ? 'Salvando...' : 'Salvar'}
                         </button>
