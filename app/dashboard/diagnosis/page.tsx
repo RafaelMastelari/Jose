@@ -2,6 +2,10 @@ import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import MonthSelector from '@/app/components/MonthSelector'
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Category color mapping
 const categoryColors: Record<string, string> = {
     'Alimentação': '#10b981', // green
@@ -18,10 +22,11 @@ function getCategoryColor(category: string): string {
 }
 
 interface PageProps {
-    searchParams: { month?: string; year?: string }
+    searchParams: Promise<{ month?: string; year?: string }>
 }
 
-export default async function DiagnosisPage({ searchParams }: PageProps) {
+export default async function DiagnosisPage(props: PageProps) {
+    const searchParams = await props.searchParams
     const supabase = await createClient()
 
     const {
