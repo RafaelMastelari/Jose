@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { processFinancialText } from '@/app/actions/process-financial-text'
+import { uploadStatement } from '@/app/actions/upload-statement'
 
 type TabType = 'paste' | 'upload'
 
@@ -23,6 +24,7 @@ export default function ImportPage() {
     const [success, setSuccess] = useState('')
     const [previewTransactions, setPreviewTransactions] = useState<Transaction[]>([])
     const [duplicates, setDuplicates] = useState<Transaction[]>([])
+    const [isDragging, setIsDragging] = useState(false)
 
     const handleAnalyze = async () => {
         setError('')
@@ -58,6 +60,66 @@ export default function ImportPage() {
             console.error('Analysis error:', err)
         } finally {
             setIsAnalyzing(false)
+        }
+    }
+
+    const handleFileUpload = async (file: File) => {
+        setError('')
+        setSuccess('')
+        setPreviewTransactions([])
+        setDuplicates([])
+        setIsAnalyzing(true)
+
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+
+            const result = await uploadStatement(formData)
+
+            if (result.success) {
+                setSuccess(result.message || 'Arquivo processado com sucesso!')
+                setPreviewTransactions(result.transactions || [])
+                setDuplicates(result.duplicates || [])
+
+                // Redirect to dashboard after 2 seconds
+                setTimeout(() => {
+                    router.push('/dashboard')
+                    router.refresh()
+                }, 2000)
+            } else {
+                setError(result.error || 'Erro ao processar arquivo.')
+            }
+        } catch (err: any) {
+            setError('Erro ao processar arquivo. Tente novamente.')
+            console.error('Upload error:', err)
+        } finally {
+            setIsAnalyzing(false)
+        }
+    }
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault()
+        setIsDragging(false)
+
+        const files = e.dataTransfer.files
+        if (files.length > 0) {
+            handleFileUpload(files[0])
+        }
+    }
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault()
+        setIsDragging(true)
+    }
+
+    const handleDragLeave = () => {
+        setIsDragging(false)
+    }
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (files && files.length > 0) {
+            handleFileUpload(files[0])
         }
     }
 
@@ -138,13 +200,11 @@ export default function ImportPage() {
                             ? 'bg-teal text-white'
                             : 'text-charcoal hover:bg-gray-100'
                             }`}
-                        disabled
                     >
                         <span className="material-symbols-outlined text-sm align-middle mr-2">
                             upload_file
                         </span>
                         Upload Arquivo
-                        <span className="text-xs ml-2 opacity-70">(Em breve)</span>
                     </button>
                 </div>
 
@@ -201,81 +261,6 @@ Exemplo:
                             </div>
                         </div>
 
-                        {/* Error Message */}
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                                <span className="material-symbols-outlined text-red-600">error</span>
-                                <p className="text-sm text-red-900">{error}</p>
-                            </div>
-                        )}
-
-                        {/* Success Message */}
-                        {success && (
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                <div className="flex items-start gap-3">
-                                    <span className="material-symbols-outlined text-mint-green">
-                                        check_circle
-                                    </span>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-green-900">{success}</p>
-                                        {duplicates.length > 0 && (
-                                            <p className="text-xs text-green-700 mt-1">
-                                                {duplicates.length} transações duplicadas foram ignoradas.
-                                            </p>
-                                        )}
-                                        <p className="text-xs text-green-700 mt-2">
-                                            Redirecionando para o dashboard...
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Preview Transactions */}
-                        {previewTransactions.length > 0 && (
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                                <h3 className="font-medium text-charcoal mb-3">
-                                    Transações Importadas ({previewTransactions.length})
-                                </h3>
-                                <div className="space-y-2 max-h-64 overflow-y-auto">
-                                    {previewTransactions.map((transaction, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-start justify-between p-3 bg-gray-50 rounded-lg"
-                                        >
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-charcoal">
-                                                    {transaction.description}
-                                                </p>
-                                                <div className="flex items-center gap-3 mt-1">
-                                                    <span className="text-xs text-gray-600">
-                                                        {new Date(transaction.date).toLocaleDateString('pt-BR')}
-                                                    </span>
-                                                    <span
-                                                        className={`text-xs font-medium ${getTypeColor(
-                                                            transaction.type
-                                                        )}`}
-                                                    >
-                                                        {getTypeLabel(transaction.type)}
-                                                    </span>
-                                                    <span className="text-xs text-gray-600">
-                                                        {transaction.category}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <span
-                                                className={`text-sm font-bold ${getTypeColor(
-                                                    transaction.type
-                                                )}`}
-                                            >
-                                                R$ {transaction.amount.toFixed(2)}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
                         {/* Analyze Button */}
                         <button
                             onClick={handleAnalyze}
@@ -316,16 +301,135 @@ Exemplo:
                     </div>
                 )}
 
-                {/* Upload Tab Content (Coming Soon) */}
+                {/* Upload Tab Content */}
                 {activeTab === 'upload' && (
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                        <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
-                            upload_file
-                        </span>
-                        <h3 className="text-lg font-medium text-charcoal mb-2">Em breve!</h3>
-                        <p className="text-sm text-gray-600">
-                            Upload de arquivos CSV e Excel estará disponível em breve.
-                        </p>
+                    <div className="space-y-4">
+                        {/* Info Box */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                                <span className="material-symbols-outlined text-blue-600">info</span>
+                                <div className="text-sm text-blue-900">
+                                    <p className="font-medium mb-1">Formatos aceitos:</p>
+                                    <ul className="list-disc list-inside space-y-1 text-blue-800">
+                                        <li><strong>.OFX</strong> - Formato Nubank/Bancos</li>
+                                        <li><strong>.CSV</strong> - Planilha de exportação</li>
+                                        <li><strong>.PDF</strong> - Extrato em PDF</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Drag and Drop Area */}
+                        <div
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            className={`bg-white rounded-lg shadow-sm border-2 border-dashed p-12 text-center transition-all ${isDragging
+                                    ? 'border-teal bg-teal/5 scale-[1.02]'
+                                    : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                        >
+                            <input
+                                type="file"
+                                id="file-upload"
+                                className="hidden"
+                                accept=".ofx,.csv,.pdf"
+                                onChange={handleFileChange}
+                                disabled={isAnalyzing}
+                            />
+                            <label
+                                htmlFor="file-upload"
+                                className="cursor-pointer"
+                            >
+                                <span className="material-symbols-outlined text-6xl text-gray-300 mb-4 block">
+                                    upload_file
+                                </span>
+                                <h3 className="text-lg font-medium text-charcoal mb-2">
+                                    Arraste seu arquivo aqui
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    ou clique para selecionar
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    OFX, CSV ou PDF • Máximo 10MB
+                                </p>
+                            </label>
+                        </div>
+                    </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mt-4">
+                        <span className="material-symbols-outlined text-red-600">error</span>
+                        <p className="text-sm text-red-900">{error}</p>
+                    </div>
+                )}
+
+                {/* Success Message */}
+                {success && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                        <div className="flex items-start gap-3">
+                            <span className="material-symbols-outlined text-mint-green">
+                                check_circle
+                            </span>
+                            <div className="flex-1">
+                                <p className="text-sm font-medium text-green-900">{success}</p>
+                                {duplicates.length > 0 && (
+                                    <p className="text-xs text-green-700 mt-1">
+                                        {duplicates.length} transações duplicadas foram ignoradas.
+                                    </p>
+                                )}
+                                <p className="text-xs text-green-700 mt-2">
+                                    Redirecionando para o dashboard...
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Preview Transactions */}
+                {previewTransactions.length > 0 && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-4">
+                        <h3 className="font-medium text-charcoal mb-3">
+                            Transações Importadas ({previewTransactions.length})
+                        </h3>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {previewTransactions.map((transaction, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-start justify-between p-3 bg-gray-50 rounded-lg"
+                                >
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-charcoal">
+                                            {transaction.description}
+                                        </p>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <span className="text-xs text-gray-600">
+                                                {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                                            </span>
+                                            <span
+                                                className={`text-xs font-medium ${getTypeColor(
+                                                    transaction.type
+                                                )}`}
+                                            >
+                                                {getTypeLabel(transaction.type)}
+                                            </span>
+                                            <span className="text-xs text-gray-600">
+                                                {transaction.category}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span
+                                        className={`text-sm font-bold ${getTypeColor(
+                                            transaction.type
+                                        )}`}
+                                    >
+                                        R$ {transaction.amount.toFixed(2)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
