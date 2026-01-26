@@ -1,180 +1,233 @@
-'use client'
+import { createClient } from '@/lib/supabase-server'
+import Link from 'next/link'
 
-import { useState } from 'react'
-import { getFinancialDiagnosis } from '@/app/actions/gemini-diagnosis'
+// Category color mapping
+const categoryColors: Record<string, string> = {
+    'Alimentação': '#10b981', // green
+    'Lazer': '#14b8a6', // teal
+    'Saúde': '#0ea5e9', // sky
+    'Transporte': '#8b5cf6', // violet
+    'Moradia': '#f59e0b', // amber
+    'Educação': '#3b82f6', // blue
+    'Outros': '#6b7280', // gray
+}
 
-export default function DiagnosisPage() {
-    const [analyzing, setAnalyzing] = useState(false)
-    const [analysis, setAnalysis] = useState<string | null>(null)
-    const [error, setError] = useState<string | null>(null)
+function getCategoryColor(category: string): string {
+    return categoryColors[category] || categoryColors['Outros']
+}
 
-    const generateDiagnosis = async () => {
-        setAnalyzing(true)
-        setError(null)
+export default async function DiagnosisPage() {
+    const supabase = await createClient()
 
-        const result = await getFinancialDiagnosis()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
 
-        if (result.success) {
-            setAnalysis(result.analysis!)
-        } else {
-            setError(result.error!)
-        }
+    // Get current month transactions
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-        setAnalyzing(false)
-    }
+    const monthStartStr = monthStart.toISOString().split('T')[0]
+    const monthEndStr = monthEnd.toISOString().split('T')[0]
+
+    // Fetch all expenses for current month
+    const { data: expenses } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('type', 'expense')
+        .gte('date', monthStartStr)
+        .lte('date', monthEndStr)
+
+    // Calculate totals and categories
+    const totalGastos = expenses?.reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
+
+    // Group by category
+    const categoryTotals: Record<string, number> = {}
+    expenses?.forEach(expense => {
+        const cat = expense.category || 'Outros'
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(expense.amount)
+    })
+
+    // Sort categories by amount (descending)
+    const sortedCategories = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: totalGastos > 0 ? (amount / totalGastos) * 100 : 0,
+        }))
+
+    // Find villain (highest spending category)
+    const vilao = sortedCategories[0]
+
+    // 6-month projection
+    const projecao6Meses = totalGastos * 6
+
+    // Meta ideal (15% para investimento)
+    const metaIdeal = totalGastos * 0.15
+
+    const hasData = totalGastos > 0
 
     return (
-        <div className="min-h-screen pb-20 sm:pb-8">
+        <div className="min-h-screen bg-[#F0F4F8] pb-24">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <h1 className="text-3xl font-extrabold text-[var(--color-text-main)]">
-                        Diagnóstico Financeiro
-                    </h1>
-                    <p className="mt-2 text-[var(--color-text-sub)]">
-                        Análise completa da sua situação financeira com IA
-                    </p>
+            <div className="bg-white border-b border-gray-200 px-6 py-4">
+                <div className="max-w-2xl mx-auto flex items-center justify-between">
+                    <Link href="/dashboard" className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
+                        <span className="material-symbols-outlined text-[var(--color-text-main)]">arrow_back</span>
+                    </Link>
+                    <h1 className="text-xl font-bold text-[var(--color-text-main)]">Diagnóstico</h1>
+                    <div className="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[var(--color-primary)] !text-[20px]">person</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Info Card */}
-                <div className="bg-gradient-to-br from-[var(--color-mint-green)]/10 to-[var(--color-primary)]/10 rounded-2xl p-6 border border-[var(--color-mint-green)]/20 mb-8">
-                    <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-full bg-[var(--color-mint-green)]/20 flex items-center justify-center flex-shrink-0">
-                            <span className="material-symbols-outlined text-[var(--color-mint-green)] !text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                auto_awesome
-                            </span>
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-lg font-bold text-[var(--color-text-main)] mb-2">
-                                Análise Inteligente com José
-                            </h3>
-                            <p className="text-sm text-[var(--color-text-sub)] leading-relaxed">
-                                O José utiliza inteligência artificial para analisar seus dados financeiros e fornecer recomendações personalizadas. Clique no botão abaixo para gerar seu relatório.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Generate Button */}
-                {!analysis && (
-                    <div className="text-center">
-                        <button
-                            onClick={generateDiagnosis}
-                            disabled={analyzing}
-                            className="inline-flex items-center gap-3 px-8 py-4 bg-[var(--color-primary)] text-white rounded-xl font-bold text-lg shadow-lg shadow-[var(--color-primary)]/25 hover:bg-[var(--color-primary-dark)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {analyzing ? (
-                                <>
-                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Analisando seus dados...
-                                </>
-                            ) : (
-                                <>
-                                    <span className="material-symbols-outlined !text-[24px]">analytics</span>
-                                    Gerar Diagnóstico Completo
-                                </>
-                            )}
-                        </button>
-                        <p className="mt-3 text-sm text-[var(--color-text-sub)]">
-                            A análise leva cerca de 10 segundos
+            <div className="max-w-2xl mx-auto px-6 py-6 space-y-6">
+                {!hasData ? (
+                    // Empty State
+                    <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+                        <span className="material-symbols-outlined text-[80px] text-gray-300 mb-4 block">
+                            analytics
+                        </span>
+                        <h3 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
+                            Sem Dados para Diagnosticar
+                        </h3>
+                        <p className="text-[var(--color-text-sub)] mb-6">
+                            Importe seu extrato primeiro para ver análises detalhadas
                         </p>
+                        <Link
+                            href="/dashboard/import"
+                            className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition-colors"
+                        >
+                            <span className="material-symbols-outlined">upload_file</span>
+                            Importar Extrato
+                        </Link>
                     </div>
-                )}
-
-                {/* Error Message */}
-                {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-8">
-                        <div className="flex items-start gap-3">
-                            <span className="material-symbols-outlined text-red-500 !text-[24px]">error</span>
-                            <div>
-                                <h4 className="font-semibold text-red-800 mb-1">Erro ao gerar diagnóstico</h4>
-                                <p className="text-sm text-red-600">{error}</p>
+                ) : (
+                    <>
+                        {/* Total Spending */}
+                        <div className="bg-white rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                        Gastos Totais
+                                    </p>
+                                    <p className="text-4xl font-bold text-[var(--color-text-main)]">
+                                        R$ {totalGastos.toFixed(2).replace('.', ',')}
+                                    </p>
+                                </div>
+                                <div className="px-3 py-1.5 bg-[#E8F5E9] rounded-lg flex items-center gap-1.5">
+                                    <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
+                                    <span className="text-xs font-semibold text-[#2E7D32]">Este Mês</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
 
-                {/* Analysis Result */}
-                {analysis && (
-                    <div className="space-y-6">
-                        {/* Analysis Card */}
-                        <div className="bg-white rounded-2xl p-8 shadow-[var(--shadow-card)] border border-gray-100">
-                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-                                <div className="w-12 h-12 rounded-full bg-[var(--color-mint-green)]/10 flex items-center justify-center">
-                                    <span className="material-symbols-outlined text-[var(--color-mint-green)] !text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                        description
+                        {/* Categories Breakdown */}
+                        <div className="bg-[#1E3A4C] rounded-2xl p-6 shadow-lg">
+                            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                                Por Categoria
+                            </h3>
+                            <div className="space-y-4">
+                                {sortedCategories.slice(0, 3).map((cat, index) => (
+                                    <div key={index}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-white">{cat.category}</span>
+                                            <span className="text-sm font-bold text-[#4ADE80]">
+                                                {cat.percentage.toFixed(0)}%
+                                            </span>
+                                        </div>
+                                        <div className="h-2 bg-[#0F2936] rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-[#4ADE80] to-[#22C55E] rounded-full transition-all"
+                                                style={{ width: `${cat.percentage}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Villain Alert */}
+                        {vilao && (
+                            <div className="bg-[#1E3A4C] rounded-2xl p-6 shadow-lg border-2 border-[#F59E0B]/30">
+                                <div className="inline-flex items-center gap-2 bg-[#F59E0B]/20 border border-[#F59E0B]/50 rounded-lg px-3 py-1 mb-4">
+                                    <span className="material-symbols-outlined text-[#F59E0B] !text-[16px]">warning</span>
+                                    <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-wide">
+                                        Alerta de Gastos
                                     </span>
                                 </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-[var(--color-text-main)]">
-                                        Previsão do José
-                                    </h2>
-                                    <p className="text-sm text-[var(--color-text-sub)]">
-                                        Gerado com IA • {new Date().toLocaleDateString('pt-BR')}
+                                <h3 className="text-2xl font-bold text-white mb-2">
+                                    Vilão: {vilao.category}
+                                </h3>
+                                <p className="text-gray-300">
+                                    <span className="text-3xl font-bold text-white">{vilao.percentage.toFixed(0)}%</span> dos seus gastos. Isso está drenando sua reserva.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Grid: 6 Months + Meta Ideal */}
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* 6 Months Projection */}
+                            <div className="bg-[#1E3A4C] rounded-2xl p-5 shadow-lg">
+                                <span className="material-symbols-outlined text-red-400 !text-[32px] mb-2 block">
+                                    trending_down
+                                </span>
+                                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Em 6 Meses</p>
+                                <p className="text-2xl font-bold text-red-400">
+                                    - R$ {projecao6Meses.toFixed(0)}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-2">Ponto projetado</p>
+                            </div>
+
+                            {/* Meta Ideal */}
+                            <div className="bg-[#1E3A4C] rounded-2xl p-5 shadow-lg">
+                                <span className="material-symbols-outlined text-[#4ADE80] !text-[32px] mb-2 block" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                    grain
+                                </span>
+                                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Meta Ideal</p>
+                                <p className="text-2xl font-bold text-white">15%</p>
+                                <p className="text-xs text-gray-400 mt-2">Investimento mensal</p>
+                            </div>
+                        </div>
+
+                        {/* José Avisa Card */}
+                        <div className="bg-[#1E3A4C] rounded-2xl p-6 shadow-lg border-2 border-[#4ADE80]/30">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 rounded-full bg-[#4ADE80]/20 flex items-center justify-center flex-shrink-0">
+                                    <span className="material-symbols-outlined text-[#4ADE80] !text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                        lightbulb
+                                    </span>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="inline-flex items-center gap-2 mb-2">
+                                        <span className="text-xs font-bold text-[#4ADE80] uppercase tracking-wide">
+                                            José Avisa
+                                        </span>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white mb-2">
+                                        Ajuste de Rota
+                                    </h3>
+                                    <p className="text-sm text-gray-300 leading-relaxed">
+                                        "Ajuste para vacas magras." Prepare-se agora para garantir fartura no futuro.
                                     </p>
                                 </div>
                             </div>
-
-                            {/* Analysis Content */}
-                            <div className="prose prose-lg max-w-none">
-                                <div className="whitespace-pre-wrap text-[var(--color-text-main)] leading-relaxed">
-                                    {analysis}
-                                </div>
-                            </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <button
-                                onClick={() => {
-                                    setAnalysis(null)
-                                    setError(null)
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--color-primary)] text-white rounded-xl font-semibold hover:bg-[var(--color-primary-dark)] active:scale-[0.98] transition-all"
-                            >
-                                <span className="material-symbols-outlined !text-[20px]">refresh</span>
-                                Nova Análise
-                            </button>
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(analysis)
-                                    alert('Análise copiada para a área de transferência!')
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white text-[var(--color-primary)] border-2 border-[var(--color-primary)] rounded-xl font-semibold hover:bg-[var(--color-primary)]/5 active:scale-[0.98] transition-all"
-                            >
-                                <span className="material-symbols-outlined !text-[20px]">content_copy</span>
-                                Copiar Análise
-                            </button>
-                        </div>
-                    </div>
+                        {/* CTA Button */}
+                        <Link
+                            href="/dashboard/tips"
+                            className="w-full bg-gradient-to-r from-[#4ADE80] to-[#22C55E] text-[#0F2936] font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                        >
+                            Ver Dicas de Economia
+                            <span className="material-symbols-outlined !text-[20px]">arrow_forward</span>
+                        </Link>
+                    </>
                 )}
-
-                {/* Financial Overview Cards (always visible) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                    {/* Current Balance */}
-                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-semibold text-[var(--color-text-sub)] uppercase">Saldo Atual</h3>
-                            <span className="material-symbols-outlined text-[var(--color-primary)] !text-[20px]">account_balance</span>
-                        </div>
-                        <p className="text-2xl font-bold text-[var(--color-text-main)]">R$ 5.420,00</p>
-                    </div>
-
-                    {/* Monthly Expenses */}
-                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-semibold text-[var(--color-text-sub)] uppercase">Gastos do Mês</h3>
-                            <span className="material-symbols-outlined text-[var(--color-tech-warning)] !text-[20px]">payments</span>
-                        </div>
-                        <p className="text-2xl font-bold text-[var(--color-text-main)]">R$ 3.250,00</p>
-                    </div>
-                </div>
             </div>
         </div>
     )
