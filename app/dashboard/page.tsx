@@ -4,7 +4,7 @@ import Link from 'next/link'
 // Helper to get category icon
 function getCategoryIcon(category: string, type: string) {
     if (type === 'income') return 'trending_up'
-    if (type === 'investment') return 'savings'
+    if (type === 'investment') return 'agriculture'
     if (type === 'transfer') return 'sync_alt'
 
     const categoryMap: Record<string, string> = {
@@ -192,7 +192,7 @@ export default async function DashboardPage() {
                     <div className="bg-gradient-to-br from-[var(--color-mint-green)]/10 to-[var(--color-primary)]/10 rounded-2xl p-6 shadow-[var(--shadow-card)] border border-[var(--color-mint-green)]/20 hover:shadow-lg transition-shadow">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wide flex items-center gap-2">
-                                <span className="material-symbols-outlined !text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>savings</span>
+                                <span className="material-symbols-outlined !text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>agriculture</span>
                                 Vacas Gordas
                             </h3>
                             <div className="w-2 h-2 rounded-full bg-[var(--color-mint-green)] animate-pulse"></div>

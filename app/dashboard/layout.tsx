@@ -32,7 +32,7 @@ export default async function DashboardLayout({
                     <div className="flex justify-between items-center h-16">
                         {/* Logo */}
                         <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[var(--color-primary)] !text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>savings</span>
+                            <span className="material-symbols-outlined text-[var(--color-primary)] !text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>agriculture</span>
                             <span className="text-xl font-bold text-[var(--color-primary-dark)]">JOSE</span>
                         </div>
 
