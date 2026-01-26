@@ -168,10 +168,10 @@ export default function SettingsPage() {
                             className="relative w-20 h-20 rounded-full overflow-hidden bg-[var(--color-primary)]/10 flex items-center justify-center hover:opacity-80 transition-opacity"
                         >
                             {profile?.avatar_url ? (
-                                <img src={profile.avatar_url || ''} alt="Avatar" className="w-full h-full object-cover" />
+                                <img src={profile.avatar_url ?? ''} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
                                 <span className="text-2xl font-bold text-[var(--color-primary)]">
-                                    {getInitials(profile?.full_name)}
+                                    {getInitials(profile?.full_name ?? null)}
                                 </span>
                             )}
 
@@ -196,7 +196,7 @@ export default function SettingsPage() {
                     />
 
                     <p className="text-lg font-semibold text-[var(--color-text-main)] mt-4">
-                        {profile?.full_name || 'Usuário'}
+                        {profile?.full_name ?? 'Usuário'}
                     </p>
                     <p className="text-sm text-[var(--color-text-sub)]">
                         Toque na foto para alterar
