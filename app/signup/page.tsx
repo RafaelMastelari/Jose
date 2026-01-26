@@ -50,30 +50,30 @@ export default function SignUpPage() {
             <main className="flex-1 flex flex-col px-6 max-w-md mx-auto w-full justify-center pb-8">
                 {/* Header Section */}
                 <div className="flex flex-col items-center mb-8 gap-6">
-                    {/* Icon Container with 3D Vault - TESSERACT ANIMATION */}
-                    <div className="relative w-24 h-24 flex items-center justify-center rounded-3xl bg-white shadow-sm border border-[#dbe6e6] overflow-hidden" style={{ perspective: '1000px' }}>
-                        {/* Geometric Vault Icon with Tesseract Rotation */}
-                        <svg
-                            className="text-[#006064]"
-                            fill="none"
-                            height="48"
-                            viewBox="0 0 24 24"
-                            width="48"
-                            xmlns="http://www.w3.org/2000/svg"
-                            style={{
-                                animation: 'tesseract 12s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite',
-                                transformStyle: 'preserve-3d',
-                                transformOrigin: 'center center',
-                            }}
-                        >
-                            <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
-                            <path d="M12 22V12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
-                            <path d="M21 7L12 12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
-                            <path d="M3 7L12 12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
-                            <circle className="opacity-50" cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"></circle>
-                        </svg>
-                        {/* Accent Dot - Pulsing */}
-                        <div className="absolute top-2 right-2 w-2 h-2 bg-[#0df2f2] rounded-full animate-pulse"></div>
+                    {/* Icon Container with Lock Sphere - Same as Welcome Page */}
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                        {/* Main Sphere */}
+                        <div className="relative z-10 w-20 h-20 rounded-full bg-white shadow-lg border-2 border-[var(--color-primary)]/20 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-[var(--color-primary)] !text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                lock
+                            </span>
+                        </div>
+
+                        {/* Orbiting Elements */}
+                        <div className="absolute inset-0 animate-[orbit_8s_linear_infinite]">
+                            <div className="absolute top-0 left-1/2 -ml-1.5 w-3 h-3 rounded-full bg-[var(--color-mint-green)] shadow-md"></div>
+                        </div>
+                        <div className="absolute inset-0 animate-[orbit_12s_linear_infinite]" style={{ animationDirection: 'reverse' }}>
+                            <div className="absolute top-0 left-1/2 -ml-1.5 w-3 h-3 rounded-full bg-[var(--color-primary)] shadow-md"></div>
+                        </div>
+
+                        {/* Rotating Dashed Ring */}
+                        <div className="absolute inset-0 rounded-full border-2 border-dashed border-[var(--color-primary)]/20 animate-[spin_12s_linear_infinite]"></div>
+
+                        {/* Badge */}
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-white rounded-full border border-[var(--color-primary)]/20 shadow-sm">
+                            <span className="text-[10px] font-bold text-[var(--color-primary)] tracking-wide uppercase">Seguro</span>
+                        </div>
                     </div>
 
                     {/* Headline */}
@@ -195,23 +195,14 @@ export default function SignUpPage() {
             {/* Bottom Safe Area */}
             <div className="h-6 w-full flex-shrink-0"></div>
 
-            {/* CSS Keyframes for Tesseract Animation */}
+            {/* CSS Animations */}
             <style jsx>{`
-        @keyframes tesseract {
+        @keyframes orbit {
           0% {
-            transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
-          }
-          25% {
-            transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg);
-          }
-          50% {
-            transform: rotateX(270deg) rotateY(180deg) rotateZ(135deg);
-          }
-          75% {
-            transform: rotateX(360deg) rotateY(270deg) rotateZ(225deg);
+            transform: rotate(0deg) translateX(50px) rotate(0deg);
           }
           100% {
-            transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+            transform: rotate(360deg) translateX(50px) rotate(-360deg);
           }
         }
       `}</style>

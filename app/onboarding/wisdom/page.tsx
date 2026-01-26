@@ -76,7 +76,7 @@ export default function FinancialWisdomPage() {
                 {/* "Começar" Button - Mint Green */}
                 <div className="w-full">
                     <Link
-                        href="/login"
+                        href="/signup"
                         className="relative w-full overflow-hidden rounded-xl bg-[#4ADE80] h-14 px-5 text-[#0A2530] text-lg font-bold leading-normal hover:bg-[#86efac] active:scale-[0.99] transition-all shadow-lg shadow-[#4ADE80]/25 flex items-center justify-center gap-2 group"
                     >
                         <span>Começar</span>
