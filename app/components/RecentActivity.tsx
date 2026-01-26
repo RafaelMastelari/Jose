@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import EditTransactionModal from './EditTransactionModal'
-import { getCategoryIcon, getCategoryColor } from '@/lib/categories-client'
+import { getCategoryIcon, getCategoryColor } from '@/lib/categories'
 
 interface Transaction {
     id: string
     description: string
-    amount: string
+    amount: string // From database it comes as string
     category: string
     subcategory?: string
     type: string
@@ -85,7 +85,10 @@ export default function RecentActivity({ transactions }: RecentActivityProps) {
 
             {editingTransaction && (
                 <EditTransactionModal
-                    transaction={editingTransaction}
+                    transaction={{
+                        ...editingTransaction,
+                        amount: parseFloat(editingTransaction.amount)
+                    }}
                     onClose={() => setEditingTransaction(null)}
                     onSuccess={handleSuccess}
                 />

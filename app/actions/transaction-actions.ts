@@ -21,6 +21,7 @@ interface UpdateTransactionData {
     amount?: number
     type?: 'income' | 'expense' | 'investment' | 'transfer'
     category?: string
+    subcategory?: string
 }
 
 interface TransactionResult {
