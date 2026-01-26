@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import RecentActivity from '../components/RecentActivity'
 
 // Helper to get category icon
 function getCategoryIcon(category: string, type: string) {
@@ -293,35 +294,7 @@ export default async function DashboardPage() {
                                 Ver todas
                             </Link>
                         </div>
-                        <div className="space-y-3">
-                            {recentTransactions.map((transaction) => {
-                                const color = getCategoryColor(transaction.type)
-                                const icon = getCategoryIcon(transaction.category, transaction.type)
-                                const isPositive = transaction.type === 'income'
-                                const amount = parseFloat(transaction.amount)
-
-                                return (
-                                    <div key={transaction.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                                        <div className={`w-10 h-10 rounded-full bg-${color}-50 flex items-center justify-center`}>
-                                            <span className={`material-symbols-outlined text-${color}-500 !text-[20px]`}>
-                                                {icon}
-                                            </span>
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-[var(--color-text-main)]">
-                                                {transaction.description}
-                                            </p>
-                                            <p className="text-xs text-[var(--color-text-sub)]">
-                                                {formatDate(transaction.date)} • {transaction.category}
-                                            </p>
-                                        </div>
-                                        <p className={`text-sm font-bold text-${color}-500`}>
-                                            {isPositive ? '+' : '-'}{formatCurrency(amount)}
-                                        </p>
-                                    </div>
-                                )
-                            })}
-                        </div>
+                        <RecentActivity transactions={recentTransactions} />
                     </div>
                 )}
             </div>
