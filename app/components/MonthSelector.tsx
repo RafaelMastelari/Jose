@@ -26,6 +26,7 @@ export default function MonthSelector({ currentMonth, currentYear }: MonthSelect
 
         console.log('Going to previous month:', newMonth, newYear)
         router.push(`/dashboard/diagnosis?month=${newMonth}&year=${newYear}`)
+        router.refresh() // Force server component re-render
     }
 
     const goToNextMonth = () => {
@@ -49,10 +50,12 @@ export default function MonthSelector({ currentMonth, currentYear }: MonthSelect
 
         console.log('Going to next month:', newMonth, newYear)
         router.push(`/dashboard/diagnosis?month=${newMonth}&year=${newYear}`)
+        router.refresh() // Force server component re-render
     }
 
     const goToCurrentMonth = () => {
         router.push('/dashboard/diagnosis')
+        router.refresh() // Force server component re-render
     }
 
     const isCurrentMonth = () => {
