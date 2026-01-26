@@ -361,7 +361,7 @@ export async function processFinancialText(text: string): Promise<ProcessResult>
             } else {
                 try {
                     const genAI = new GoogleGenerativeAI(apiKey)
-                    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+                    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
                     const prompt = `Você é o José, um assistente financeiro inteligente para usuários brasileiros.
 

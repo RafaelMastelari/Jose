@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { updateTransactionWithLearning } from '@/app/actions/transaction-actions'
 import { CATEGORIES, getAllCategories, getSubcategories } from '@/lib/categories'
 
@@ -21,6 +21,8 @@ interface EditTransactionModalProps {
 export default function EditTransactionModal({ transaction, onClose, onSuccess }: EditTransactionModalProps) {
     const [category, setCategory] = useState(transaction.category || 'other')
     const [subcategory, setSubcategory] = useState(transaction.subcategory || '')
+    const [customSubcategory, setCustomSubcategory] = useState('')
+    const [isCustomSubcategory, setIsCustomSubcategory] = useState(false)
     const [updateSimilar, setUpdateSimilar] = useState(true) // Checked by default
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
@@ -28,15 +30,37 @@ export default function EditTransactionModal({ transaction, onClose, onSuccess }
     const categories = getAllCategories()
     const subcategories = getSubcategories(category)
 
+    // Force category and subcategory from transaction on mount
+    useEffect(() => {
+        setCategory(transaction.category || 'other')
+        setSubcategory(transaction.subcategory || '')
+
+        // Check if subcategory is custom (not in predefined list)
+        if (transaction.subcategory) {
+            const predefinedSubs = getSubcategories(transaction.category || 'other')
+            if (!predefinedSubs.includes(transaction.subcategory)) {
+                setIsCustomSubcategory(true)
+                setCustomSubcategory(transaction.subcategory)
+                setSubcategory('custom')
+            }
+        }
+    }, [transaction])
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
         setError('')
 
         try {
+            // Use custom subcategory if selected, otherwise use dropdown value
+            const finalSubcategory = subcategory === 'custom' ? customSubcategory : subcategory
+
             const result = await updateTransactionWithLearning(
                 transaction.id,
-                { category, subcategory: subcategory || undefined },
+                {
+                    category,
+                    subcategory: finalSubcategory || undefined
+                },
                 updateSimilar
             )
 
@@ -98,13 +122,16 @@ export default function EditTransactionModal({ transaction, onClose, onSuccess }
 
                     {/* Subcategory Selection */}
                     {subcategories.length > 0 && (
-                        <div>
+                        <div className="space-y-3">
                             <label className="block text-sm font-medium text-charcoal mb-2">
                                 Subcategoria (Detalhes)
                             </label>
                             <select
                                 value={subcategory}
-                                onChange={(e) => setSubcategory(e.target.value)}
+                                onChange={(e) => {
+                                    setSubcategory(e.target.value)
+                                    setIsCustomSubcategory(e.target.value === 'custom')
+                                }}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal transition-all"
                             >
                                 <option value="">Nenhuma (apenas categoria)</option>
@@ -113,7 +140,20 @@ export default function EditTransactionModal({ transaction, onClose, onSuccess }
                                         {sub}
                                     </option>
                                 ))}
+                                <option value="custom">✏️ Outra (Personalizada)</option>
                             </select>
+
+                            {/* Custom Subcategory Input */}
+                            {isCustomSubcategory && (
+                                <input
+                                    type="text"
+                                    value={customSubcategory}
+                                    onChange={(e) => setCustomSubcategory(e.target.value)}
+                                    placeholder="Digite a subcategoria..."
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal transition-all"
+                                    autoFocus
+                                />
+                            )}
                         </div>
                     )}
 

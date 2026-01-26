@@ -249,6 +249,7 @@ export async function updateTransactionWithLearning(
                 .from('transactions')
                 .update({
                     category: updateData.category,
+                    subcategory: updateData.subcategory || null,
                     type: updateData.type || original.type,
                     updated_at: new Date().toISOString(),
                 })
