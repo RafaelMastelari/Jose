@@ -1,26 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Jose Design System - Tailwind v4 */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Primary Palette (Teal) */
+  --color-primary: #006D77;
+  --color-primary-dark: #004E56;
+  --color-primary-light: #E0F2F1;
+
+  /* Accent (Mint Green) */
+  --color-mint-green: #4ADE80;
+  --color-mint-soft: #86efac;
+
+  /* Surfaces & Text (Petrol Blue) */
+  --color-petrol-blue: #0A2530;
+  --color-petrol-card: #0F3443;
+  --color-text-main: #1e293b;
+  --color-text-sub: #64748b;
+
+  /* Backgrounds */
+  --color-background-ice: #F0F7FA;
+  --color-ice-white: #F4F7FA;
+
+  /* State Colors */
+  --color-tech-warning: #F59E0B;
+  --color-tech-danger: #EF4444;
+
+  /* Typography */
+  --font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+
+  /* Shadows */
+  --shadow-card: 0 20px 50px -20px rgba(0, 109, 119, 0.15);
+  --shadow-glow: 0 0 15px rgba(0, 109, 119, 0.3);
+  --shadow-mint-glow: 0 0 15px rgba(74, 222, 128, 0.4);
+
+  /* Border Radius */
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base Styles */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-display);
+  background: var(--color-background-ice);
+  color: var(--color-text-main);
+  min-height: 100vh;
+}
+
+/* Selection */
+::selection {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-ice-white);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }
