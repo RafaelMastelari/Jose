@@ -219,8 +219,8 @@ export default function TransactionsPage() {
                                 {/* Transactions List */}
                                 <div className="divide-y divide-gray-100">
                                     {dayTransactions.map((transaction) => {
-                                        const color = getCategoryColor(transaction.type)
-                                        const icon = getCategoryIcon(transaction.category, transaction.type)
+                                        const color = getCategoryColor(transaction.category)
+                                        const icon = getCategoryIcon(transaction.category)
                                         const isPositive = transaction.type === 'income'
 
                                         return (
