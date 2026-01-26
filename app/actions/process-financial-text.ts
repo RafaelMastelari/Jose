@@ -425,6 +425,17 @@ Resposta:`
             }
         }
 
+        // SMART CATEGORIZATION: Apply personal history and global hints
+        console.log('🧠 Applying smart categorization...')
+        for (const transaction of allTransactions) {
+            const smartCategory = await smartCategorize(transaction.description, user.id, supabase)
+            if (smartCategory) {
+                transaction.type = smartCategory.type
+                transaction.category = smartCategory.category
+                console.log(`  ✅ Smart: "${transaction.description}" → ${smartCategory.category}`)
+            }
+        }
+
         // Check for duplicates
         const { data: existingTransactions } = await supabase
             .from('transactions')

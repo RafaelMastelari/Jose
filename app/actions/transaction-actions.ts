@@ -197,6 +197,141 @@ export async function updateTransaction(
     }
 }
 
+// Slugify helper for category learning
+function slug ify(text: string): string {
+    return text.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '')
+        .trim()
+}
+
+/**
+ * Update transaction with category learning (cascade + global hints)
+ */
+export async function updateTransactionWithLearning(
+    id: string,
+    updateData: UpdateTransactionData,
+    updateSimilar: boolean = false
+): Promise<TransactionResult & { updatedCount?: number }> {
+    try {
+        const supabase = await createClient()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+        if (userError || !user) {
+            return {
+                success: false,
+                error: 'Usuário não autenticado.',
+            }
+        }
+
+        // Get original transaction
+        const { data: original, error: fetchError } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .single()
+
+        if (fetchError || !original) {
+            return {
+                success: false,
+                error: 'Transação não encontrada.',
+            }
+        }
+
+        let updatedCount = 0
+
+        // CASCADE UPDATE: Apply to similar transactions
+        if (updateSimilar && updateData.category && updateData.category !== original.category) {
+            const { count, error: cascadeError } = await supabase
+                .from('transactions')
+                .update({
+                    category: updateData.category,
+                    type: updateData.type || original.type,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('user_id', user.id)
+                .eq('description', original.description)
+
+            if (!cascadeError) {
+                updatedCount = count || 0
+                console.log(`✅ Cascade: Updated ${updatedCount} similar transactions`)
+            }
+        } else {
+            // Single update
+            const { error: updateError } = await supabase
+                .from('transactions')
+                .update({
+                    ...updateData,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', id)
+                .eq('user_id', user.id)
+
+            if (updateError) {
+                return {
+                    success: false,
+                    error: 'Erro ao atualizar transação.',
+                }
+            }
+            updatedCount = 1
+        }
+
+        // GLOBAL LEARNING: Upsert to global_category_hints
+        if (updateData.category && updateData.category !== original.category) {
+            const slug = slugify(original.description)
+
+            // Try to increment existing or insert new
+            const { data: existing } = await supabase
+                .from('global_category_hints')
+                .select('votes')
+                .eq('description_slug', slug)
+                .eq('category', updateData.category)
+                .single()
+
+            if (existing) {
+                // Increment votes
+                await supabase
+                    .from('global_category_hints')
+                    .update({
+                        votes: existing.votes + 1,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('description_slug', slug)
+                    .eq('category', updateData.category)
+            } else {
+                // Insert new hint
+                await supabase
+                    .from('global_category_hints')
+                    .insert({
+                        description_slug: slug,
+                        category: updateData.category,
+                        votes: 1,
+                        updated_at: new Date().toISOString(),
+                    })
+            }
+
+            console.log(`🧠 Global learning: "${original.description}" → ${updateData.category}`)
+        }
+
+        // Revali date pages
+        revalidatePath('/dashboard')
+        revalidatePath('/dashboard/transactions')
+
+        return {
+            success: true,
+            updatedCount,
+        }
+    } catch (error: any) {
+        console.error('Error in updateTransactionWithLearning:', error)
+        return {
+            success: false,
+            error: error.message || 'Erro ao atualizar transação.',
+        }
+    }
+}
+
 /**
  * Delete a transaction
  */
