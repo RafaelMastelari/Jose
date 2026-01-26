@@ -24,6 +24,53 @@ interface ProcessResult {
     }
 }
 
+// Slugify helper for category learning
+function slugify(text: string): string {
+    return text.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove accents
+        .replace(/[^a-z0-9]+/g, '') // Remove non-alphanumeric
+        .trim()
+}
+
+// Smart categorization with memory consultation
+async function smartCategorize(description: string, userId: string, supabase: any): Promise<{ type: 'income' | 'expense' | 'transfer' | 'investment', category: string } | null> {
+    const slug = slugify(description)
+
+    // LEVEL 1: Personal History - Check user's own transactions
+    const { data: personalHistory } = await supabase
+        .from('transactions')
+        .select('category, type')
+        .eq('user_id', userId)
+        .ilike('description', `%${description}%`)
+        .limit(1)
+        .single()
+
+    if (personalHistory) {
+        console.log('✅ Category from personal history:', personalHistory)
+        return { type: personalHistory.type, category: personalHistory.category }
+    }
+
+    // LEVEL 2: Global Hints - Check crowd intelligence
+    const { data: globalHints } = await supabase
+        .from('global_category_hints')
+        .select('category')
+        .eq('description_slug', slug)
+        .order('votes', { ascending: false })
+        .limit(1)
+        .single()
+
+    if (globalHints) {
+        console.log('✅ Category from global hints:', globalHints)
+        // Global hints only have category, use keyword matching for type
+        const keywordResult = categorizeByKeyword(description)
+        return { type: keywordResult.type, category: globalHints.category }
+    }
+
+    // No memory found, return null to fall back to keyword matching
+    return null
+}
+
 // Month name to number mapping (PT-BR)
 const monthMap: Record<string, number> = {
     'JAN': 1, 'FEV': 2, 'MAR': 3, 'ABR': 4, 'MAI': 5, 'JUN': 6,
