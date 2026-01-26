@@ -9,7 +9,6 @@ interface MonthSelectorProps {
 
 export default function MonthSelector({ currentMonth, currentYear }: MonthSelectorProps) {
     const router = useRouter()
-    const searchParams = useSearchParams()
 
     const months = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -25,6 +24,7 @@ export default function MonthSelector({ currentMonth, currentYear }: MonthSelect
             newYear = currentYear - 1
         }
 
+        console.log('Going to previous month:', newMonth, newYear)
         router.push(`/dashboard/diagnosis?month=${newMonth}&year=${newYear}`)
     }
 
@@ -43,9 +43,11 @@ export default function MonthSelector({ currentMonth, currentYear }: MonthSelect
         const currentDate = new Date(today.getFullYear(), today.getMonth())
 
         if (targetDate > currentDate) {
+            console.log('Cannot go to future month')
             return // Can't go to future months
         }
 
+        console.log('Going to next month:', newMonth, newYear)
         router.push(`/dashboard/diagnosis?month=${newMonth}&year=${newYear}`)
     }
 
@@ -79,6 +81,7 @@ export default function MonthSelector({ currentMonth, currentYear }: MonthSelect
             <button
                 onClick={goToPreviousMonth}
                 className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+                aria-label="Mês anterior"
             >
                 <span className="material-symbols-outlined text-[var(--color-text-main)]">chevron_left</span>
             </button>
@@ -101,6 +104,7 @@ export default function MonthSelector({ currentMonth, currentYear }: MonthSelect
                 onClick={goToNextMonth}
                 disabled={!canGoNext()}
                 className="w-10 h-10 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                aria-label="Próximo mês"
             >
                 <span className="material-symbols-outlined text-[var(--color-text-main)]">chevron_right</span>
             </button>
