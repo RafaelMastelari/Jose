@@ -49,16 +49,18 @@ export async function generateWisdom(): Promise<WisdomResult> {
             }
         }
 
-        // Get current month transactions
+        // Get transactions from last 30 days (not just current month)
+        // This ensures the AI has historical context even at the beginning of the month
         const now = new Date()
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-        const monthStartStr = monthStart.toISOString().split('T')[0]
+        const thirtyDaysAgo = new Date(now)
+        thirtyDaysAgo.setDate(now.getDate() - 30)
+        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
 
         const { data: transactions } = await supabase
             .from('transactions')
             .select('*')
             .eq('user_id', user.id)
-            .gte('date', monthStartStr)
+            .gte('date', thirtyDaysAgoStr)
             .order('date', { ascending: false })
 
         // Analyze spending patterns

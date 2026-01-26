@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import MonthSelector from '@/app/components/MonthSelector'
 
 // Category color mapping
 const categoryColors: Record<string, string> = {
@@ -16,22 +17,30 @@ function getCategoryColor(category: string): string {
     return categoryColors[category] || categoryColors['Outros']
 }
 
-export default async function DiagnosisPage() {
+interface PageProps {
+    searchParams: { month?: string; year?: string }
+}
+
+export default async function DiagnosisPage({ searchParams }: PageProps) {
     const supabase = await createClient()
 
     const {
         data: { user },
     } = await supabase.auth.getUser()
 
-    // Get current month transactions
+    // Parse month/year from searchParams or use current date
     const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const selectedMonth = searchParams.month ? parseInt(searchParams.month) : now.getMonth() + 1
+    const selectedYear = searchParams.year ? parseInt(searchParams.year) : now.getFullYear()
+
+    // Calculate month start and end based on selected month
+    const monthStart = new Date(selectedYear, selectedMonth - 1, 1)
+    const monthEnd = new Date(selectedYear, selectedMonth, 0)
 
     const monthStartStr = monthStart.toISOString().split('T')[0]
     const monthEndStr = monthEnd.toISOString().split('T')[0]
 
-    // Fetch all expenses for current month
+    // Fetch all expenses for selected month
     const { data: expenses } = await supabase
         .from('transactions')
         .select('*')
@@ -86,6 +95,9 @@ export default async function DiagnosisPage() {
             </div>
 
             <div className="max-w-2xl mx-auto px-6 py-6 space-y-6">
+                {/* Month Selector */}
+                <MonthSelector currentMonth={selectedMonth} currentYear={selectedYear} />
+
                 {!hasData ? (
                     // Empty State
                     <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
@@ -93,10 +105,10 @@ export default async function DiagnosisPage() {
                             analytics
                         </span>
                         <h3 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
-                            Sem Dados para Diagnosticar
+                            Sem Dados para {selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear() ? 'Este Mês' : `${selectedMonth}/${selectedYear}`}
                         </h3>
                         <p className="text-[var(--color-text-sub)] mb-6">
-                            Importe seu extrato primeiro para ver análises detalhadas
+                            Não há transações neste período
                         </p>
                         <Link
                             href="/dashboard/import"
@@ -121,7 +133,9 @@ export default async function DiagnosisPage() {
                                 </div>
                                 <div className="px-3 py-1.5 bg-[#E8F5E9] rounded-lg flex items-center gap-1.5">
                                     <div className="w-2 h-2 bg-[#4CAF50] rounded-full"></div>
-                                    <span className="text-xs font-semibold text-[#2E7D32]">Este Mês</span>
+                                    <span className="text-xs font-semibold text-[#2E7D32]">
+                                        {selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear() ? 'Este Mês' : `${selectedMonth}/${selectedYear}`}
+                                    </span>
                                 </div>
                             </div>
                         </div>

@@ -321,7 +321,7 @@ Resposta:`
         if (allTransactions.length === 0) {
             return {
                 success: false,
-                error: 'Nenhuma transação encontrada. Verifique o formato do extrato.',
+                error: 'Nenhuma transação encontrada. Verifique o formato do extrato, exemplo, 05/01/26 | 100.00 | Descrição | Tipo | Categoria',
             }
         }
 
