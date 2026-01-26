@@ -8,60 +8,73 @@ export async function middleware(request: NextRequest) {
         },
     })
 
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll()
-                },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value }) =>
-                        request.cookies.set(name, value)
-                    )
-                    response = NextResponse.next({
-                        request,
-                    })
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
-                    )
-                },
-            },
+    try {
+        // Check if environment variables are available
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            console.warn('⚠️ Supabase environment variables not found, bypassing auth check')
+            return response
         }
-    )
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+            {
+                cookies: {
+                    getAll() {
+                        return request.cookies.getAll()
+                    },
+                    setAll(cookiesToSet) {
+                        cookiesToSet.forEach(({ name, value }) =>
+                            request.cookies.set(name, value)
+                        )
+                        response = NextResponse.next({
+                            request,
+                        })
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            response.cookies.set(name, value, options)
+                        )
+                    },
+                },
+            }
+        )
 
-    // Log for debugging
-    console.log('🔐 Middleware:', {
-        path: request.nextUrl.pathname,
-        hasUser: !!user,
-        userEmail: user?.email,
-    })
+        const {
+            data: { user },
+        } = await supabase.auth.getUser()
 
-    // Protected routes - require authentication
-    const isProtected = request.nextUrl.pathname.startsWith('/dashboard')
+        // Log for debugging
+        console.log('🔐 Middleware:', {
+            path: request.nextUrl.pathname,
+            hasUser: !!user,
+            userEmail: user?.email,
+        })
 
-    // Auth routes - redirect if already logged in
-    const isAuthRoute =
-        request.nextUrl.pathname === '/login' ||
-        request.nextUrl.pathname === '/signup'
+        // Protected routes - require authentication
+        const isProtected = request.nextUrl.pathname.startsWith('/dashboard')
 
-    if (isProtected && !user) {
-        console.log('❌ Blocking access to protected route - redirecting to login')
-        return NextResponse.redirect(new URL('/login', request.url))
+        // Auth routes - redirect if already logged in
+        const isAuthRoute =
+            request.nextUrl.pathname === '/login' ||
+            request.nextUrl.pathname === '/signup'
+
+        if (isProtected && !user) {
+            console.log('❌ Blocking access to protected route - redirecting to login')
+            return NextResponse.redirect(new URL('/login', request.url))
+        }
+
+        if (isAuthRoute && user) {
+            console.log('✅ Already logged in - redirecting to dashboard')
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+
+        console.log('✅ Access granted')
+        return response
+    } catch (error) {
+        // If middleware fails, log error but allow request to proceed
+        console.error('⚠️ Middleware error:', error)
+        console.log('➡️ Allowing request to proceed despite error')
+        return response
     }
-
-    if (isAuthRoute && user) {
-        console.log('✅ Already logged in - redirecting to dashboard')
-        return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
-
-    console.log('✅ Access granted')
-    return response
 }
 
 export const config = {
