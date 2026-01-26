@@ -2,7 +2,7 @@
 
 import { processFinancialText } from './process-financial-text'
 // @ts-ignore - pdf-parse doesn't have types
-import pdf from 'pdf-parse/lib/pdf-parse'
+import pdf from 'pdf-parse'
 
 interface UploadResult {
     success: boolean
