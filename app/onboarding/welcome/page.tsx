@@ -22,7 +22,7 @@ export default function WelcomePage() {
       {/* Header Logo */}
       <header className="relative z-10 flex w-full items-center justify-center pb-4">
         <div className="flex items-center gap-2 rounded-full bg-white/60 px-5 py-2 backdrop-blur-md shadow-sm border border-white/50">
-          <span className="material-symbols-outlined text-[var(--color-primary)] !text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>agriculture</span>
+          <span className="material-symbols-outlined text-[var(--color-primary)] !text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>grain</span>
           <span className="text-sm font-bold tracking-widest uppercase text-[var(--color-primary-dark)]">JOSE</span>
         </div>
       </header>
