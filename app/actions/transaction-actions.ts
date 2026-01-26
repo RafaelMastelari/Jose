@@ -198,7 +198,7 @@ export async function updateTransaction(
 }
 
 // Slugify helper for category learning
-function slug ify(text: string): string {
+function slugify(text: string): string {
     return text.toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
