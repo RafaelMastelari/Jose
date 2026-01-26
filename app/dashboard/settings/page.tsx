@@ -168,7 +168,7 @@ export default function SettingsPage() {
                             className="relative w-20 h-20 rounded-full overflow-hidden bg-[var(--color-primary)]/10 flex items-center justify-center hover:opacity-80 transition-opacity"
                         >
                             {profile?.avatar_url ? (
-                                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                <img src={profile.avatar_url || ''} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
                                 <span className="text-2xl font-bold text-[var(--color-primary)]">
                                     {getInitials(profile?.full_name)}
@@ -395,8 +395,8 @@ export default function SettingsPage() {
             {toast && (
                 <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-[slideUp_0.3s_ease-out]">
                     <div className={`px-6 py-3 rounded-full shadow-lg flex items-center gap-2 ${toast.type === 'success'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-red-500 text-white'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-red-500 text-white'
                         }`}>
                         <span className="material-symbols-outlined !text-[20px]">
                             {toast.type === 'success' ? 'check_circle' : 'error'}
