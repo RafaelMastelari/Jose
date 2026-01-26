@@ -1,8 +1,6 @@
 'use server'
 
 import { processFinancialText } from './process-financial-text'
-// @ts-ignore - pdf-parse doesn't have types
-import pdf from 'pdf-parse'
 
 interface UploadResult {
     success: boolean
@@ -48,18 +46,6 @@ function parseOFX(content: string): string {
     } catch (error) {
         console.error('Error parsing OFX:', error)
         throw new Error('Erro ao processar arquivo OFX')
-    }
-}
-
-// Parse PDF using pdf-parse
-async function parsePDF(buffer: Buffer): Promise<string> {
-    try {
-        const data = await pdf(buffer)
-        // pdf-parse returns the full text content
-        return data.text
-    } catch (error) {
-        console.error('Error parsing PDF:', error)
-        throw new Error('Erro ao processar arquivo PDF')
     }
 }
 
@@ -112,13 +98,15 @@ export async function uploadStatement(formData: FormData): Promise<UploadResult>
                 textContent = content
             }
         } else if (filename.endsWith('.pdf')) {
-            console.log('📄 Detected PDF format')
-            const buffer = Buffer.from(await file.arrayBuffer())
-            textContent = await parsePDF(buffer)
+            // PDF support temporarily disabled due to ESM compatibility issues
+            return {
+                success: false,
+                error: 'Suporte a PDF temporariamente desabilitado. Use .ofx ou .csv por favor.',
+            }
         } else {
             return {
                 success: false,
-                error: 'Formato não suportado. Use .ofx, .csv ou .pdf',
+                error: 'Formato não suportado. Use .ofx ou .csv',
             }
         }
 
