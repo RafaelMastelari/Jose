@@ -68,7 +68,17 @@ export default function ImportPage() {
         setSuccess('')
         setPreviewTransactions([])
         setDuplicates([])
+
+        // Validate file type specifically for clearer feedback
+        const fileName = file.name.toLowerCase()
+        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+            setError('Arquivos Excel (.xlsx/.xls) ainda não são suportados. Por favor, salve seu arquivo como CSV e tente novamente.')
+            return
+        }
+
         setIsAnalyzing(true)
+        // Yield to allow UI to render the loading state immediately
+        await new Promise(resolve => setTimeout(resolve, 0))
 
         try {
             const formData = new FormData()
@@ -121,6 +131,8 @@ export default function ImportPage() {
         if (files && files.length > 0) {
             handleFileUpload(files[0])
         }
+        // CRITICAL: Reset input to allow re-selection of the same file
+        e.target.value = ''
     }
 
     const handleClear = () => {
@@ -161,75 +173,73 @@ export default function ImportPage() {
         }
     }
 
-    // Processing State Card
-    if (isAnalyzing) {
-        return (
-            <div className="min-h-screen bg-ice-blue flex items-center justify-center p-6">
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center animate-in fade-in zoom-in duration-300">
-                    <div className="mb-6 relative">
-                        <div className="absolute inset-0 bg-teal/20 rounded-full blur-xl animate-pulse"></div>
-                        <div className="relative bg-white rounded-full p-6 w-24 h-24 mx-auto border-4 border-[var(--color-primary)]/10 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-4xl text-[var(--color-primary)] animate-spin">
-                                donut_large
-                            </span>
-                        </div>
-                    </div>
-
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">
-                        Lendo seu arquivo...
-                    </h2>
-
-                    <p className="text-gray-600 mb-8">
-                        José está categorizando suas transações automaticamente.
-                    </p>
-
-                    <div className="w-full bg-gray-100 rounded-full h-2 mb-2 overflow-hidden">
-                        <div className="h-full bg-[var(--color-primary)] rounded-full animate-[loading_2s_ease-in-out_infinite] w-1/3"></div>
-                    </div>
-                    <p className="text-xs text-gray-400">Isso pode levar alguns segundos</p>
-                </div>
-            </div>
-        )
-    }
-
-    // Success State Card with Auto-Redirect
-    if (success && previewTransactions.length > 0) {
-        return (
-            <div className="min-h-screen bg-ice-blue flex items-center justify-center p-6">
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center animate-in fade-in zoom-in duration-300">
-                    <div className="mb-6">
-                        <div className="bg-green-100 rounded-full p-6 w-24 h-24 mx-auto flex items-center justify-center">
-                            <span className="material-symbols-outlined text-5xl text-green-600 animate-[bounce_1s_ease-in-out_1]">
-                                check_circle
-                            </span>
-                        </div>
-                    </div>
-
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">
-                        Importação Concluída!
-                    </h2>
-
-                    <p className="text-gray-600 mb-6">
-                        Processamos <strong>{previewTransactions.length} transações</strong> com sucesso.
-                    </p>
-
-                    {duplicates.length > 0 && (
-                        <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg mb-6">
-                            Ignoramos {duplicates.length} duplicatas que já existiam.
-                        </p>
-                    )}
-
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                        <span className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"></span>
-                        Redirecionando para o painel...
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
     return (
-        <div className="min-h-screen bg-ice-blue pb-20">
+        <div className="min-h-screen bg-ice-blue pb-20 relative">
+            {/* Loading Overlay */}
+            {isAnalyzing && (
+                <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center border border-gray-100">
+                        <div className="mb-6 relative">
+                            <div className="absolute inset-0 bg-teal/20 rounded-full blur-xl animate-pulse"></div>
+                            <div className="relative bg-white rounded-full p-6 w-24 h-24 mx-auto border-4 border-[var(--color-primary)]/10 flex items-center justify-center">
+                                <span className="material-symbols-outlined text-4xl text-[var(--color-primary)] animate-spin">
+                                    donut_large
+                                </span>
+                            </div>
+                        </div>
+
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">
+                            Lendo seu arquivo...
+                        </h2>
+
+                        <p className="text-gray-600 mb-8">
+                            José está categorizando suas transações.
+                        </p>
+
+                        <div className="w-full bg-gray-100 rounded-full h-2 mb-2 overflow-hidden">
+                            <div className="h-full bg-[var(--color-primary)] rounded-full animate-[loading_2s_ease-in-out_infinite] w-1/3"></div>
+                        </div>
+                        <p className="text-xs text-gray-400">Isso pode levar alguns segundos</p>
+                    </div>
+                </div>
+            )}
+
+            {isAnalyzing && <div className="fixed inset-0 z-40 bg-black/5" />}
+
+            {/* Success Overlay */}
+            {success && previewTransactions.length > 0 && (
+                <div className="fixed inset-0 bg-white z-50 flex items-center justify-center p-6 animate-in fade-in zoom-in duration-300">
+                    <div className="max-w-md w-full text-center">
+                        <div className="mb-6">
+                            <div className="bg-green-100 rounded-full p-6 w-24 h-24 mx-auto flex items-center justify-center">
+                                <span className="material-symbols-outlined text-5xl text-green-600 animate-[bounce_1s_ease-in-out_1]">
+                                    check_circle
+                                </span>
+                            </div>
+                        </div>
+
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">
+                            Importação Concluída!
+                        </h2>
+
+                        <p className="text-gray-600 mb-6">
+                            Processamos <strong>{previewTransactions.length} transações</strong> com sucesso.
+                        </p>
+
+                        {duplicates.length > 0 && (
+                            <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg mb-6">
+                                Ignoramos {duplicates.length} duplicatas.
+                            </p>
+                        )}
+
+                        <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                            <span className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"></span>
+                            Redirecionando...
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex items-center gap-3">
@@ -372,7 +382,7 @@ Exemplo:
                                 type="file"
                                 id="file-upload"
                                 className="hidden"
-                                accept=".ofx,.csv,.pdf"
+                                accept=".ofx,.csv,.pdf,.xlsx,.xls"
                                 onChange={handleFileChange}
                                 disabled={isAnalyzing}
                             />
@@ -390,20 +400,28 @@ Exemplo:
                                     ou clique para selecionar
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    OFX, CSV ou PDF • Máximo 10MB
+                                    OFX, CSV ou PDF (Excel em breve) • Máximo 10MB
                                 </p>
                             </label>
                         </div>
                     </div>
                 )}
 
-                {/* Error Message */}
+                {/* Error Message - Floating/Sticky at bottom */}
                 {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mt-6 animate-in fade-in slide-in-from-bottom-2">
-                        <span className="material-symbols-outlined text-red-600 mt-0.5">error</span>
-                        <div>
-                            <p className="text-sm font-semibold text-red-900 mb-1">Ops, algo deu errado.</p>
-                            <p className="text-sm text-red-800">{error}</p>
+                    <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-96 bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg animate-in fade-in slide-in-from-bottom-5 z-50">
+                        <div className="flex items-start gap-3">
+                            <span className="material-symbols-outlined text-red-600 mt-0.5">error</span>
+                            <div>
+                                <p className="text-sm font-semibold text-red-900 mb-1">Erro na Importação</p>
+                                <p className="text-sm text-red-800">{error}</p>
+                                <button
+                                    onClick={() => setError('')}
+                                    className="text-xs text-red-700 hover:text-red-900 mt-2 underline"
+                                >
+                                    Fechar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
