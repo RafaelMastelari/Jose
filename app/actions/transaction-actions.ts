@@ -172,7 +172,7 @@ export async function updateTransaction(
         // Verify ownership before update
         const { data: existing } = await supabase
             .from('transactions')
-            .select('user_id')
+            .select('user_id, category')
             .eq('id', id)
             .single()
 
@@ -184,8 +184,14 @@ export async function updateTransaction(
         }
 
         // Update transaction
+        // Force type based on category
+        const finalCategory = updateData.category || existing.category
+        const forceType = deriveType(finalCategory)
+
         const updatePayload = {
             ...updateData,
+            category: finalCategory,
+            type: forceType,
             updated_at: new Date().toISOString(),
         }
 
@@ -239,6 +245,20 @@ function slugify(text: string): string {
         .trim()
 }
 
+const INCOME_CATEGORIES = ['salary', 'freelance', 'sales', 'income', 'receitas', 'receita', 'salário', 'salario']
+const INVESTMENT_CATEGORIES = ['investment', 'investimento', 'investimentos']
+const TRANSFER_CATEGORIES = ['transfer', 'transferencia', 'transferência']
+
+function deriveType(category: string): string {
+    const cat = category.toLowerCase().trim()
+
+    if (INCOME_CATEGORIES.some(c => cat.includes(c)) || cat === 'income' || cat === 'receitas') return 'income'
+    if (INVESTMENT_CATEGORIES.some(c => cat.includes(c)) || cat === 'investment') return 'investment'
+    if (TRANSFER_CATEGORIES.some(c => cat.includes(c)) || cat === 'transfer') return 'transfer'
+
+    return 'expense'
+}
+
 /**
  * Update transaction with category learning (cascade + global hints)
  */
@@ -282,9 +302,8 @@ export async function updateTransactionWithLearning(
 
         // --- STEP 2: UPDATE CURRENT TRANSACTION (FORCE TYPE) ---
         // Logic: Income group forces type='income', else type='expense'
-        // We check against 'income' key primarily.
-        const isIncome = finalCategory === 'income' || finalCategory === 'Receitas'
-        const forceType = isIncome ? 'income' : 'expense'
+        // RIGID TYPE DERIVATION
+        const forceType = deriveType(finalCategory)
 
         // Prepare payload
         const updatePayload = {
