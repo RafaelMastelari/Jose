@@ -1,98 +1,164 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import EditTransactionModal from './EditTransactionModal'
-import { getCategoryIcon, getCategoryColor } from '@/lib/categories'
+import { useState } from 'react';
+import { TransactionCard } from './TransactionCard';
+import EditTransactionModal from './EditTransactionModal';
+import { ActionDrawer } from './ActionDrawer';
+import { SelectionHeader } from './SelectionHeader';
+import { deleteTransaction } from '@/app/actions/transaction-actions';
 
 interface Transaction {
-    id: string
-    description: string
-    amount: string // From database it comes as string
-    category: string
-    subcategory?: string
-    type: string
-    date: string
+    id: string;
+    description: string;
+    amount: string;
+    type: 'income' | 'expense' | 'investment' | 'transfer';
+    category: string;
+    subcategory?: string;
+    transaction_date: string;
+    date: string;
 }
 
 interface RecentActivityProps {
-    transactions: Transaction[]
+    transactions: Transaction[];
 }
 
 export default function RecentActivity({ transactions }: RecentActivityProps) {
-    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-    const [isRefreshing, setIsRefreshing] = useState(false)
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
 
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr)
-        const now = new Date()
-        const diffTime = now.getTime() - date.getTime()
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    const onRefresh = () => {
+        window.location.reload();
+    };
 
-        if (diffDays === 0) return 'Hoje'
-        if (diffDays === 1) return 'Ontem'
-        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-    }
+    const handleDeleteSingle = async (id: string) => {
+        if (confirm('Tem certeza que deseja excluir esta transação?')) {
+            const result = await deleteTransaction(id);
+            if (result.success) {
+                onRefresh();
+            }
+        }
+    };
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-        }).format(value)
-    }
+    const handleDeleteSelected = async () => {
+        const count = selectedIds.size;
+        if (confirm(`Tem certeza que deseja excluir ${count} ${count === 1 ? 'transação' : 'transações'}?`)) {
+            const deletePromises = Array.from(selectedIds).map(id => deleteTransaction(id));
+            await Promise.all(deletePromises);
+            setSelectedIds(new Set());
+            setIsSelectionMode(false);
+            onRefresh();
+        }
+    };
 
-    const handleSuccess = () => {
-        setIsRefreshing(true)
-        // Refresh the page to show updated data
-        window.location.reload()
-    }
+    const handleDeleteMonth = async () => {
+        if (!activeTransactionId) return;
+
+        const transaction = transactions.find(t => t.id === activeTransactionId);
+        if (!transaction) return;
+
+        const date = new Date(transaction.date || transaction.transaction_date);
+        const monthName = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+        if (confirm(`⚠️ ATENÇÃO: Você tem certeza que deseja excluir TODAS as transações de ${monthName}? Esta ação não pode ser desfeita!`)) {
+            const month = date.getMonth();
+            const year = date.getFullYear();
+
+            const transactionsToDelete = transactions.filter(t => {
+                const tDate = new Date(t.date || t.transaction_date);
+                return tDate.getMonth() === month && tDate.getFullYear() === year;
+            });
+
+            const deletePromises = transactionsToDelete.map(t => deleteTransaction(t.id));
+            await Promise.all(deletePromises);
+            onRefresh();
+        }
+    };
+
+    const handleTap = (transaction: Transaction) => {
+        setEditingTransaction(transaction);
+    };
+
+    const handleLongPress = (transactionId: string) => {
+        setActiveTransactionId(transactionId);
+        setDrawerOpen(true);
+    };
+
+    const handleToggleSelect = (transactionId: string) => {
+        const newSelected = new Set(selectedIds);
+        if (newSelected.has(transactionId)) {
+            newSelected.delete(transactionId);
+        } else {
+            newSelected.add(transactionId);
+        }
+        setSelectedIds(newSelected);
+    };
+
+    const handleEnterSelectionMode = () => {
+        setIsSelectionMode(true);
+        if (activeTransactionId) {
+            setSelectedIds(new Set([activeTransactionId]));
+        }
+    };
+
+    const handleCancelSelection = () => {
+        setIsSelectionMode(false);
+        setSelectedIds(new Set());
+    };
 
     return (
         <>
-            <div className="space-y-3">
-                {transactions.map((transaction) => {
-                    const color = getCategoryColor(transaction.category)
-                    const icon = getCategoryIcon(transaction.category)
-                    const isPositive = transaction.type === 'income'
-                    const amount = parseFloat(transaction.amount)
-                    const displayLabel = transaction.subcategory || transaction.category
+            {isSelectionMode && (
+                <SelectionHeader
+                    selectedCount={selectedIds.size}
+                    onCancel={handleCancelSelection}
+                    onDeleteSelected={handleDeleteSelected}
+                />
+            )}
 
-                    return (
-                        <button
-                            key={transaction.id}
-                            onClick={() => setEditingTransaction(transaction)}
-                            className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                        >
-                            <div className={`w-10 h-10 rounded-full bg-${color}-50 flex items-center justify-center flex-shrink-0`}>
-                                <span className={`material-symbols-outlined text-${color}-500 !text-[20px]`}>
-                                    {icon}
-                                </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-charcoal truncate">
-                                    {transaction.description}
-                                </p>
-                                <p className="text-xs text-gray-600">
-                                    {formatDate(transaction.date)} • {displayLabel}
-                                </p>
-                            </div>
-                            <p className={`text-sm font-bold text-${color}-500 flex-shrink-0`}>
-                                {isPositive ? '+' : '-'}{formatCurrency(amount)}
-                            </p>
-                        </button>
-                    )
-                })}
+            <div className={`space-y-3 ${isSelectionMode ? 'pt-16' : ''}`}>
+                {transactions.map((transaction) => (
+                    <TransactionCard
+                        key={transaction.id}
+                        transaction={{
+                            ...transaction,
+                            amount: parseFloat(transaction.amount),
+                            transaction_date: transaction.date || transaction.transaction_date,
+                        }}
+                        isSelectionMode={isSelectionMode}
+                        isSelected={selectedIds.has(transaction.id)}
+                        onTap={() => handleTap(transaction)}
+                        onLongPress={() => handleLongPress(transaction.id)}
+                        onToggleSelect={() => handleToggleSelect(transaction.id)}
+                    />
+                ))}
             </div>
 
-            {editingTransaction && (
+            {editingTransaction && !isSelectionMode && (
                 <EditTransactionModal
                     transaction={{
                         ...editingTransaction,
-                        amount: parseFloat(editingTransaction.amount)
+                        amount: parseFloat(editingTransaction.amount),
+                        date: editingTransaction.date || editingTransaction.transaction_date,
                     }}
                     onClose={() => setEditingTransaction(null)}
-                    onSuccess={handleSuccess}
+                    onSuccess={onRefresh}
                 />
             )}
+
+            <ActionDrawer
+                isOpen={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                onDeleteSingle={() => {
+                    if (activeTransactionId) {
+                        handleDeleteSingle(activeTransactionId);
+                    }
+                }}
+                onEnterSelectionMode={handleEnterSelectionMode}
+                onDeleteMonth={handleDeleteMonth}
+            />
         </>
-    )
+    );
 }

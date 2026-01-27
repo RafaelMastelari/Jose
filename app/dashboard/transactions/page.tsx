@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getTransactions, deleteTransaction } from '@/app/actions/transaction-actions'
+import { getTransactions, deleteTransaction, updateTransactionWithLearning } from '@/app/actions/transaction-actions'
+import { TransactionCard } from '@/app/components/TransactionCard'
 import EditTransactionModal from '@/app/components/EditTransactionModal'
-import { getCategoryIcon, getCategoryColor } from '@/lib/categories'
+import { ActionDrawer } from '@/app/components/ActionDrawer'
+import { SelectionHeader } from '@/app/components/SelectionHeader'
 
 interface Transaction {
     id: string
@@ -24,15 +26,13 @@ export default function TransactionsPage() {
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1)
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
 
-    // Edit modal state
-    const [editModalOpen, setEditModalOpen] = useState(false)
+    // Edit and selection state
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+    const [isSelectionMode, setIsSelectionMode] = useState(false)
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+    const [drawerOpen, setDrawerOpen] = useState(false)
+    const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null)
 
-    // Delete modal state
-    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-    const [deletingId, setDeletingId] = useState<string | null>(null)
-
-    const [actionLoading, setActionLoading] = useState(false)
     const [error, setError] = useState('')
 
     // Load transactions
@@ -82,40 +82,88 @@ export default function TransactionsPage() {
         return months[month - 1]
     }
 
-    // Edit handlers
-    const openEditModal = (transaction: Transaction) => {
-        setEditingTransaction(transaction)
-        setEditModalOpen(true)
-    }
-
-    const handleEditSuccess = () => {
-        setEditModalOpen(false)
-        loadTransactions()
-    }
-
-    // Delete handlers
-    const openDeleteModal = (id: string) => {
-        setDeletingId(id)
-        setDeleteModalOpen(true)
-    }
-
-    const handleConfirmDelete = async () => {
-        if (!deletingId) return
-
-        setActionLoading(true)
-        setError('')
-
-        const result = await deleteTransaction(deletingId)
-
+    // Transaction handlers
+    const handleEdit = async (id: string, data: any) => {
+        const result = await updateTransactionWithLearning(id, data)
         if (result.success) {
-            setDeleteModalOpen(false)
-            setDeletingId(null)
+            setEditingTransaction(null)
             loadTransactions()
-        } else {
-            setError(result.error || 'Erro ao excluir')
         }
+    }
 
-        setActionLoading(false)
+    const handleDeleteSingle = async (id: string) => {
+        if (confirm('Tem certeza que deseja excluir esta transação?')) {
+            const result = await deleteTransaction(id)
+            if (result.success) {
+                loadTransactions()
+            }
+        }
+    }
+
+    const handleDeleteSelected = async () => {
+        const count = selectedIds.size
+        if (confirm(`Tem certeza que deseja excluir ${count} ${count === 1 ? 'transação' : 'transações'}?`)) {
+            const deletePromises = Array.from(selectedIds).map(id => deleteTransaction(id))
+            await Promise.all(deletePromises)
+            setSelectedIds(new Set())
+            setIsSelectionMode(false)
+            loadTransactions()
+        }
+    }
+
+    const handleDeleteMonth = async () => {
+        if (!activeTransactionId) return
+
+        const transaction = transactions.find(t => t.id === activeTransactionId)
+        if (!transaction) return
+
+        const date = new Date(transaction.date)
+        const monthName = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+
+        if (confirm(`⚠️ ATENÇÃO: Você tem certeza que deseja excluir TODAS as transações de ${monthName}? Esta ação não pode ser desfeita!`)) {
+            const month = date.getMonth()
+            const year = date.getFullYear()
+
+            const transactionsToDelete = transactions.filter(t => {
+                const tDate = new Date(t.date)
+                return tDate.getMonth() === month && tDate.getFullYear() === year
+            })
+
+            const deletePromises = transactionsToDelete.map(t => deleteTransaction(t.id))
+            await Promise.all(deletePromises)
+            loadTransactions()
+        }
+    }
+
+    const handleTap = (transaction: Transaction) => {
+        setEditingTransaction(transaction)
+    }
+
+    const handleLongPress = (transactionId: string) => {
+        setActiveTransactionId(transactionId)
+        setDrawerOpen(true)
+    }
+
+    const handleToggleSelect = (transactionId: string) => {
+        const newSelected = new Set(selectedIds)
+        if (newSelected.has(transactionId)) {
+            newSelected.delete(transactionId)
+        } else {
+            newSelected.add(transactionId)
+        }
+        setSelectedIds(newSelected)
+    }
+
+    const handleEnterSelectionMode = () => {
+        setIsSelectionMode(true)
+        if (activeTransactionId) {
+            setSelectedIds(new Set([activeTransactionId]))
+        }
+    }
+
+    const handleCancelSelection = () => {
+        setIsSelectionMode(false)
+        setSelectedIds(new Set())
     }
 
     // Group transactions by day
@@ -205,69 +253,41 @@ export default function TransactionsPage() {
                     </div>
                 )}
 
+                {isSelectionMode && (
+                    <SelectionHeader
+                        selectedCount={selectedIds.size}
+                        onCancel={handleCancelSelection}
+                        onDeleteSelected={handleDeleteSelected}
+                    />
+                )}
+
                 {!loading && Object.keys(groupedTransactions).length > 0 && (
-                    <div className="space-y-6">
+                    <div className={`space-y-6 ${isSelectionMode ? 'pt-16' : ''}`}>
                         {Object.entries(groupedTransactions).map(([date, dayTransactions]) => (
-                            <div key={date} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                            <div key={date}>
                                 {/* Date Header */}
-                                <div className="bg-[var(--color-background-ice)] px-4 py-3 border-b border-gray-100">
+                                <div className="bg-[var(--color-background-ice)] px-4 py-2 rounded-t-lg">
                                     <p className="text-sm font-semibold text-[var(--color-text-sub)] capitalize">
                                         {formatDate(date)}
                                     </p>
                                 </div>
 
                                 {/* Transactions List */}
-                                <div className="divide-y divide-gray-100">
-                                    {dayTransactions.map((transaction) => {
-                                        const color = getCategoryColor(transaction.category)
-                                        const icon = getCategoryIcon(transaction.category)
-                                        const isPositive = transaction.type === 'income'
-
-                                        return (
-                                            <div key={transaction.id} className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
-                                                <div className={`w-10 h-10 rounded-full bg-${color}-50 flex items-center justify-center flex-shrink-0`}>
-                                                    <span className={`material-symbols-outlined text-${color}-500 !text-[20px]`}>
-                                                        {icon}
-                                                    </span>
-                                                </div>
-
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-semibold text-[var(--color-text-main)] truncate">
-                                                        {transaction.description}
-                                                    </p>
-                                                    <p className="text-xs text-[var(--color-text-sub)]">
-                                                        {transaction.category}
-                                                    </p>
-                                                </div>
-
-                                                <p className={`text-sm font-bold text-${color}-500 flex-shrink-0`}>
-                                                    {isPositive ? '+' : '-'}{formatCurrency(transaction.amount)}
-                                                </p>
-
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <button
-                                                        onClick={() => openEditModal(transaction)}
-                                                        className="w-8 h-8 rounded-full hover:bg-blue-50 flex items-center justify-center transition-colors"
-                                                        title="Editar"
-                                                    >
-                                                        <span className="material-symbols-outlined text-blue-500 !text-[18px]">
-                                                            edit
-                                                        </span>
-                                                    </button>
-
-                                                    <button
-                                                        onClick={() => openDeleteModal(transaction.id)}
-                                                        className="w-8 h-8 rounded-full hover:bg-red-50 flex items-center justify-center transition-colors"
-                                                        title="Excluir"
-                                                    >
-                                                        <span className="material-symbols-outlined text-red-500 !text-[18px]">
-                                                            delete
-                                                        </span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
+                                <div className="space-y-3 mt-2">
+                                    {dayTransactions.map((transaction) => (
+                                        <TransactionCard
+                                            key={transaction.id}
+                                            transaction={{
+                                                ...transaction,
+                                                transaction_date: transaction.date,
+                                            }}
+                                            isSelectionMode={isSelectionMode}
+                                            isSelected={selectedIds.has(transaction.id)}
+                                            onTap={() => handleTap(transaction)}
+                                            onLongPress={() => handleLongPress(transaction.id)}
+                                            onToggleSelect={() => handleToggleSelect(transaction.id)}
+                                        />
+                                    ))}
                                 </div>
                             </div>
                         ))}
@@ -276,57 +296,26 @@ export default function TransactionsPage() {
             </div>
 
             {/* Edit Modal */}
-            {editModalOpen && editingTransaction && (
+            {editingTransaction && !isSelectionMode && (
                 <EditTransactionModal
                     transaction={editingTransaction}
-                    onClose={() => setEditModalOpen(false)}
-                    onSuccess={handleEditSuccess}
+                    onClose={() => setEditingTransaction(null)}
+                    onSuccess={loadTransactions}
                 />
             )}
 
-            {/* Delete Confirmation Modal */}
-            {deleteModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setDeleteModalOpen(false)}>
-                    <div className="bg-white rounded-2xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
-                        <div className="text-center mb-6">
-                            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-                                <span className="material-symbols-outlined text-red-500 !text-[32px]">
-                                    delete
-                                </span>
-                            </div>
-                            <h3 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
-                                Excluir Transação?
-                            </h3>
-                            <p className="text-[var(--color-text-sub)]">
-                                Esta ação não pode ser desfeita.
-                            </p>
-                        </div>
-
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                                <p className="text-sm text-red-900">{error}</p>
-                            </div>
-                        )}
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setDeleteModalOpen(false)}
-                                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-semibold text-[var(--color-text-main)] hover:bg-gray-50 transition-colors"
-                                disabled={actionLoading}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleConfirmDelete}
-                                disabled={actionLoading}
-                                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors disabled:opacity-50"
-                            >
-                                {actionLoading ? 'Excluindo...' : 'Excluir'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Action Drawer */}
+            <ActionDrawer
+                isOpen={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                onDeleteSingle={() => {
+                    if (activeTransactionId) {
+                        handleDeleteSingle(activeTransactionId)
+                    }
+                }}
+                onEnterSelectionMode={handleEnterSelectionMode}
+                onDeleteMonth={handleDeleteMonth}
+            />
         </div>
     )
 }
