@@ -161,6 +161,73 @@ export default function ImportPage() {
         }
     }
 
+    // Processing State Card
+    if (isAnalyzing) {
+        return (
+            <div className="min-h-screen bg-ice-blue flex items-center justify-center p-6">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center animate-in fade-in zoom-in duration-300">
+                    <div className="mb-6 relative">
+                        <div className="absolute inset-0 bg-teal/20 rounded-full blur-xl animate-pulse"></div>
+                        <div className="relative bg-white rounded-full p-6 w-24 h-24 mx-auto border-4 border-[var(--color-primary)]/10 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-4xl text-[var(--color-primary)] animate-spin">
+                                donut_large
+                            </span>
+                        </div>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                        Lendo seu arquivo...
+                    </h2>
+
+                    <p className="text-gray-600 mb-8">
+                        José está categorizando suas transações automaticamente.
+                    </p>
+
+                    <div className="w-full bg-gray-100 rounded-full h-2 mb-2 overflow-hidden">
+                        <div className="h-full bg-[var(--color-primary)] rounded-full animate-[loading_2s_ease-in-out_infinite] w-1/3"></div>
+                    </div>
+                    <p className="text-xs text-gray-400">Isso pode levar alguns segundos</p>
+                </div>
+            </div>
+        )
+    }
+
+    // Success State Card with Auto-Redirect
+    if (success && previewTransactions.length > 0) {
+        return (
+            <div className="min-h-screen bg-ice-blue flex items-center justify-center p-6">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center animate-in fade-in zoom-in duration-300">
+                    <div className="mb-6">
+                        <div className="bg-green-100 rounded-full p-6 w-24 h-24 mx-auto flex items-center justify-center">
+                            <span className="material-symbols-outlined text-5xl text-green-600 animate-[bounce_1s_ease-in-out_1]">
+                                check_circle
+                            </span>
+                        </div>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                        Importação Concluída!
+                    </h2>
+
+                    <p className="text-gray-600 mb-6">
+                        Processamos <strong>{previewTransactions.length} transações</strong> com sucesso.
+                    </p>
+
+                    {duplicates.length > 0 && (
+                        <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg mb-6">
+                            Ignoramos {duplicates.length} duplicatas que já existiam.
+                        </p>
+                    )}
+
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                        <span className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"></span>
+                        Redirecionando para o painel...
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="min-h-screen bg-ice-blue pb-20">
             {/* Header */}
@@ -265,38 +332,10 @@ Exemplo:
                         <button
                             onClick={handleAnalyze}
                             disabled={isAnalyzing || !extractText.trim()}
-                            className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
+                            className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-md"
                         >
-                            {isAnalyzing ? (
-                                <>
-                                    <svg
-                                        className="animate-spin h-5 w-5"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                        ></circle>
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                        ></path>
-                                    </svg>
-                                    José está analisando suas transações...
-                                </>
-                            ) : (
-                                <>
-                                    <span className="material-symbols-outlined">auto_awesome</span>
-                                    Analisar com José
-                                </>
-                            )}
+                            <span className="material-symbols-outlined">auto_awesome</span>
+                            Analisar com José
                         </button>
                     </div>
                 )}
@@ -324,9 +363,9 @@ Exemplo:
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
-                            className={`bg-white rounded-lg shadow-sm border-2 border-dashed p-12 text-center transition-all ${isDragging
+                            className={`bg-white rounded-lg shadow-sm border-2 border-dashed p-12 text-center transition-all cursor-pointer ${isDragging
                                 ? 'border-teal bg-teal/5 scale-[1.02]'
-                                : 'border-gray-300 hover:border-gray-400'
+                                : 'border-gray-300 hover:border-teal hover:bg-teal/5'
                                 }`}
                         >
                             <input
@@ -339,9 +378,9 @@ Exemplo:
                             />
                             <label
                                 htmlFor="file-upload"
-                                className="cursor-pointer"
+                                className="cursor-pointer w-full h-full block"
                             >
-                                <span className="material-symbols-outlined text-6xl text-gray-300 mb-4 block">
+                                <span className="material-symbols-outlined text-6xl text-gray-300 mb-4 block group-hover:text-teal transition-colors">
                                     upload_file
                                 </span>
                                 <h3 className="text-lg font-medium text-charcoal mb-2">
@@ -360,75 +399,11 @@ Exemplo:
 
                 {/* Error Message */}
                 {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mt-4">
-                        <span className="material-symbols-outlined text-red-600">error</span>
-                        <p className="text-sm text-red-900">{error}</p>
-                    </div>
-                )}
-
-                {/* Success Message */}
-                {success && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
-                        <div className="flex items-start gap-3">
-                            <span className="material-symbols-outlined text-mint-green">
-                                check_circle
-                            </span>
-                            <div className="flex-1">
-                                <p className="text-sm font-medium text-green-900">{success}</p>
-                                {duplicates.length > 0 && (
-                                    <p className="text-xs text-green-700 mt-1">
-                                        {duplicates.length} transações duplicadas foram ignoradas.
-                                    </p>
-                                )}
-                                <p className="text-xs text-green-700 mt-2">
-                                    Redirecionando para o dashboard...
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Preview Transactions */}
-                {previewTransactions.length > 0 && (
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-4">
-                        <h3 className="font-medium text-charcoal mb-3">
-                            Transações Importadas ({previewTransactions.length})
-                        </h3>
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {previewTransactions.map((transaction, index) => (
-                                <div
-                                    key={index}
-                                    className="flex items-start justify-between p-3 bg-gray-50 rounded-lg"
-                                >
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-charcoal">
-                                            {transaction.description}
-                                        </p>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-xs text-gray-600">
-                                                {new Date(transaction.date).toLocaleDateString('pt-BR')}
-                                            </span>
-                                            <span
-                                                className={`text-xs font-medium ${getTypeColor(
-                                                    transaction.type
-                                                )}`}
-                                            >
-                                                {getTypeLabel(transaction.type)}
-                                            </span>
-                                            <span className="text-xs text-gray-600">
-                                                {transaction.category}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <span
-                                        className={`text-sm font-bold ${getTypeColor(
-                                            transaction.type
-                                        )}`}
-                                    >
-                                        R$ {transaction.amount.toFixed(2)}
-                                    </span>
-                                </div>
-                            ))}
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mt-6 animate-in fade-in slide-in-from-bottom-2">
+                        <span className="material-symbols-outlined text-red-600 mt-0.5">error</span>
+                        <div>
+                            <p className="text-sm font-semibold text-red-900 mb-1">Ops, algo deu errado.</p>
+                            <p className="text-sm text-red-800">{error}</p>
                         </div>
                     </div>
                 )}
