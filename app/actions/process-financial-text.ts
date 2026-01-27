@@ -33,6 +33,57 @@ function slugify(text: string): string {
         .trim()
 }
 
+// Transfer detection: Check if transaction is between user's own accounts
+function isTransfer(description: string, userName: string): boolean {
+    const lowerDesc = description.toLowerCase()
+
+    // Check for user name in description (self-transfer)
+    if (userName && lowerDesc.includes(userName.toLowerCase())) {
+        return true
+    }
+
+    // Check for transfer keywords indicating same ownership
+    const transferKeywords = [
+        'mesma titularidade',
+        'transferência entre contas',
+        'transferencia entre contas',
+        'transf entre contas',
+        'ted própria',
+        'ted propria',
+        'pix próprio',
+        'pix proprio',
+        'conta própria',
+        'conta propria'
+    ]
+
+    return transferKeywords.some(keyword => lowerDesc.includes(keyword))
+}
+
+// Investment categorization: Distinguish applications from redemptions
+function categorizeInvestment(description: string, amount: number): { type: 'investment', category: string } | null {
+    const lowerDesc = description.toLowerCase()
+
+    // Redemption keywords (positive amounts - money coming back)
+    const redemptionKeywords = ['resgate', 'resg', 'rendimento', 'resgate cdb', 'resgate rdb']
+    const isRedemption = redemptionKeywords.some(kw => lowerDesc.includes(kw))
+
+    // Application keywords (negative amounts - money being invested)
+    const applicationKeywords = ['aplicação', 'aplicacao', 'apl', 'cdb', 'rdb', 'lci', 'lca', 'poupança', 'poupanca', 'tesouro', 'fundo']
+    const isApplication = applicationKeywords.some(kw => lowerDesc.includes(kw))
+
+    // Redemption: positive amount + redemption keywords
+    if (isRedemption && amount > 0) {
+        return { type: 'investment', category: 'investimento' }
+    }
+
+    // Application: negative amount + application keywords
+    if (isApplication && amount < 0) {
+        return { type: 'investment', category: 'investimento' }
+    }
+
+    return null // Not an investment
+}
+
 // Smart categorization with memory consultation
 async function smartCategorize(description: string, userId: string, supabase: any): Promise<{ type: 'income' | 'expense' | 'transfer' | 'investment', category: string } | null> {
     const slug = slugify(description)
@@ -367,11 +418,31 @@ export async function processFinancialText(text: string): Promise<ProcessResult>
 
 TAREFA: Analise o extrato bancário abaixo e extraia TODAS as transações como um array JSON.
 
-REGRAS DE CATEGORIZAÇÃO:
-1. TRANSFERÊNCIAS (type: 'transfer'): Transferência entre contas, TED, PIX
-2. INVESTIMENTOS (type: 'investment'): Aplicação, CDB, Tesouro, Corretora, RDB, Resgate
-3. RECEITAS (type: 'income'): Salários, Freelance, Reembolsos
-4. DESPESAS (type: 'expense'): Alimentação, Transporte, Lazer, Moradia, Saúde, Educação, Outros
+REGRAS AVANÇADAS DE CATEGORIZAÇÃO:
+
+1. TRANSFERÊNCIAS (type: 'transfer'):
+   - Transferências entre contas próprias do usuário
+   - Palavras-chave: "mesma titularidade", "entre contas", "TED própria", "PIX próprio"
+   - NÃO gera receita ou despesa real
+
+2. INVESTIMENTOS - APLICAÇÕES (type: 'investment', valor NEGATIVO):
+   - "Aplicação", "Apl CDB", "Apl RDB", "Poupança"
+   - Dinheiro SAINDO da conta para investir
+   - Mantenha o sinal negativo
+
+3. INVESTIMENTOS - RESGATES (type: 'investment', valor POSITIVO):
+   - "Resgate", "Resg CDB", "Resgate RDB", "Rendimento"
+   - Dinheiro VOLTANDO do investimento
+   - NÃO classifique como income (receita)
+   - Mantenha o sinal positivo
+
+4. RECEITAS (type: 'income'):
+   - Salários, Freelance, Reembolsos, Vendas
+   - NÃO inclua resgates de investimento
+
+5. DESPESAS (type: 'expense'):
+   - Alimentação, Transporte, Lazer, Moradia, Saúde, Educação
+   - NÃO inclua aplicações de investimento
 
 FORMATAÇÃO:
 - DATAS: Converta para YYYY-MM-DD (exemplo: "05/01/26" → "2026-01-05")
@@ -422,6 +493,38 @@ Resposta:`
             return {
                 success: false,
                 error: 'Usuário não autenticado. Faça login novamente.',
+            }
+        }
+
+        // FETCH USER PROFILE for transfer detection
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single()
+
+        const userName = profile?.full_name || ''
+        console.log(`👤 User: ${userName || 'No name set'}`)
+
+        // APPLY ADVANCED ACCOUNTING LOGIC: Transfer & Investment Detection
+        console.log('💰 Applying advanced accounting logic...')
+        for (const transaction of allTransactions) {
+            // 1. CHECK FOR TRANSFERS (self-transactions)
+            if (isTransfer(transaction.description, userName)) {
+                transaction.type = 'transfer'
+                transaction.category = 'transfer'
+                console.log(`  🔄 Transfer detected: "${transaction.description}"`)
+                continue // Skip further categorization
+            }
+
+            // 2. CHECK FOR INVESTMENTS (application vs redemption)
+            const investmentResult = categorizeInvestment(transaction.description, transaction.amount)
+            if (investmentResult) {
+                transaction.type = investmentResult.type
+                transaction.category = investmentResult.category
+                const flowType = transaction.amount > 0 ? 'Redemption' : 'Application'
+                console.log(`  📈 Investment ${flowType}: "${transaction.description}" (${transaction.amount})`)
+                continue // Skip further categorization
             }
         }
 

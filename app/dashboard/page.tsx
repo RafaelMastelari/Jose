@@ -59,10 +59,19 @@ export default async function DashboardPage() {
         .lte('date', monthEndStr)
         .order('date', { ascending: false })
 
-    // Calculate financial metrics
+    // Calculate financial metrics with ADVANCED ACCOUNTING LOGIC
     const totalIncome = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
-    const totalExpenses = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
-    const totalInvestments = transactions?.filter(t => t.type === 'investment').reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
+    const totalExpenses = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
+
+    // NET INVESTMENT: Applications (negative) - Redemptions (positive)
+    const investmentTransactions = transactions?.filter(t => t.type === 'investment') || []
+    const totalApplications = investmentTransactions
+        .filter(t => parseFloat(t.amount) < 0)
+        .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
+    const totalRedemptions = investmentTransactions
+        .filter(t => parseFloat(t.amount) > 0)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
+    const netInvestment = totalApplications - totalRedemptions
 
     const currentBalance = totalIncome - totalExpenses
     const monthlySpending = totalExpenses
@@ -196,22 +205,34 @@ export default async function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* Vacas Gordas (Investimentos) */}
-                    <div className="bg-gradient-to-br from-[var(--color-mint-green)]/10 to-[var(--color-primary)]/10 rounded-2xl p-6 shadow-[var(--shadow-card)] border border-[var(--color-mint-green)]/20 hover:shadow-lg transition-shadow">
+                    {/* Investment (Vacas Gordas) */}
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 shadow-[var(--shadow-card)] text-white">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wide flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-white/90 uppercase tracking-wide flex items-center gap-2">
                                 <span className="material-symbols-outlined !text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>grain</span>
                                 Vacas Gordas
                             </h3>
-                            <div className="w-2 h-2 rounded-full bg-[var(--color-mint-green)] animate-pulse"></div>
+                            <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
                         </div>
                         <div className="space-y-3">
-                            <p className="text-3xl font-bold text-[var(--color-text-main)]">
-                                {formatCurrency(totalInvestments)}
+                            <p className="text-3xl font-bold text-white">
+                                {formatCurrency(netInvestment)}
                             </p>
-                            <p className="text-sm text-[var(--color-text-sub)]">
-                                {hasData ? 'Investimentos do mês' : 'Comece a investir!'}
+                            <p className="text-sm text-white/80">
+                                {hasData ? 'Investimento Líquido' : 'Comece a investir!'}
                             </p>
+                            {hasData && (
+                                <div className="flex gap-3 text-xs text-white/70 mt-2 pt-2 border-t border-white/20">
+                                    <div>
+                                        <span>Aplicado:</span>
+                                        <span className="font-semibold ml-1">{formatCurrency(totalApplications)}</span>
+                                    </div>
+                                    <div>
+                                        <span>Resgatado:</span>
+                                        <span className="font-semibold ml-1">{formatCurrency(totalRedemptions)}</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
