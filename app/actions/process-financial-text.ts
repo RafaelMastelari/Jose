@@ -9,6 +9,7 @@ interface Transaction {
     amount: number // Always positive
     type: 'income' | 'expense' | 'transfer' | 'investment'
     category: string
+    subcategory?: string | null
 }
 
 interface ProcessResult {
@@ -61,13 +62,13 @@ function categorizeInvestment(description: string, amount: number): { type: 'inv
 }
 
 // Smart categorization with memory consultation
-async function smartCategorize(description: string, userId: string, supabase: any): Promise<{ type: 'income' | 'expense' | 'transfer' | 'investment', category: string } | null> {
+async function smartCategorize(description: string, userId: string, supabase: any): Promise<{ type: 'income' | 'expense' | 'transfer' | 'investment', category: string, subcategory?: string | null } | null> {
     const slug = slugify(description)
 
     // LEVEL 1: Personal History - Check user's own transactions
     const { data: personalHistory } = await supabase
         .from('transactions')
-        .select('category, type')
+        .select('category, subcategory, type')
         .eq('user_id', userId)
         .ilike('description', `%${description}%`)
         .limit(1)
@@ -75,13 +76,17 @@ async function smartCategorize(description: string, userId: string, supabase: an
 
     if (personalHistory) {
         console.log('✅ Category from personal history:', personalHistory)
-        return { type: personalHistory.type, category: personalHistory.category }
+        return {
+            type: personalHistory.type,
+            category: personalHistory.category,
+            subcategory: personalHistory.subcategory
+        }
     }
 
     // LEVEL 2: Global Hints - Check crowd intelligence
     const { data: globalHints } = await supabase
         .from('global_category_hints')
-        .select('category')
+        .select('category, subcategory')
         .eq('description_slug', slug)
         .order('votes', { ascending: false })
         .limit(1)
@@ -91,7 +96,11 @@ async function smartCategorize(description: string, userId: string, supabase: an
         console.log('✅ Category from global hints:', globalHints)
         // Global hints only have category, use keyword matching for type
         const keywordResult = categorizeByKeyword(description)
-        return { type: keywordResult.type, category: globalHints.category }
+        return {
+            type: keywordResult.type,
+            category: globalHints.category,
+            subcategory: globalHints.subcategory
+        }
     }
 
     // No memory found, return null to fall back to keyword matching
@@ -496,7 +505,8 @@ Resposta:`
             if (smartCategory) {
                 transaction.type = smartCategory.type
                 transaction.category = smartCategory.category
-                console.log(`  ✅ Smart: "${transaction.description}" → ${smartCategory.category}`)
+                transaction.subcategory = smartCategory.subcategory || null
+                console.log(`  ✅ Smart: "${transaction.description}" → ${smartCategory.category} (${smartCategory.subcategory || 'no sub'})`)
             }
         }
 
@@ -540,6 +550,7 @@ Resposta:`
             amount: t.amount,
             type: t.type,
             category: t.category,
+            subcategory: t.subcategory || null,
         }))
 
         const { error: insertError } = await supabase

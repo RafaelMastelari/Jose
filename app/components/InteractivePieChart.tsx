@@ -104,19 +104,23 @@ export function InteractivePieChart({ data, title }: InteractivePieChartProps) {
         }))
     }, [data])
 
+    // Google Charts vibrant palette for subcategories
+    const SUB_COLORS = [
+        '#3366CC', '#DC3912', '#FF9900', '#109618', '#990099',
+        '#3B3EAC', '#0099C6', '#DD4477', '#66AA00', '#B82E2E',
+        '#316395', '#994499', '#22AA99', '#AAAA11', '#6633CC'
+    ]
+
     // Determine current data to display
     const currentData = useMemo(() => {
         if (viewLevel === 'category') {
             return enrichedData
         }
         if (selectedCategory && selectedCategory.subcategories) {
-            return selectedCategory.subcategories.map(sub => ({
+            return selectedCategory.subcategories.map((sub, index) => ({
                 ...sub,
-                fill: selectedCategory.fill // Keep parent color for subcategories or generate shades?
-                // For simplicity and consistency request: "Use CATEGORY_COLORS mapping"
-                // But subcategories usually don't have their own global colors.
-                // Optimally: shades of parent color or simple opacity.
-                // Let's stick to parent color for now or allow subcategory specific if provided.
+                // Fallback logic: Use category color map if name matches, else valid vibrant palette
+                fill: CATEGORY_COLORS[sub.name] || SUB_COLORS[index % SUB_COLORS.length]
             }))
         }
         return []
