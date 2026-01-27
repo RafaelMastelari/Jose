@@ -31,10 +31,10 @@ export default async function DashboardLayout({
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         {/* Logo */}
-                        <div className="flex items-center gap-2">
+                        <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
                             <span className="material-symbols-outlined text-[var(--color-primary)] !text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>grain</span>
                             <span className="text-xl font-bold text-[var(--color-primary-dark)]">JOSE</span>
-                        </div>
+                        </Link>
 
                         {/* User Info & Logout */}
                         <div className="flex items-center gap-4">

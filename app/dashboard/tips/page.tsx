@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { generateWisdom } from '@/app/actions/generate-wisdom'
+import { getLastWisdom } from '@/app/actions/get-last-wisdom'
 import Image from 'next/image'
 
 interface Tip {
@@ -52,8 +53,28 @@ function getCategoryColor(category: string): string {
 
 export default function TipsPage() {
     const [wisdom, setWisdom] = useState<StructuredWisdom | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)  // Start as true for initial load
     const [error, setError] = useState('')
+
+    // Load last wisdom on component mount
+    useEffect(() => {
+        async function loadLastWisdom() {
+            try {
+                const result = await getLastWisdom()
+                if (result.success && result.wisdom) {
+                    setWisdom(result.wisdom)
+                    console.log('📖 Last wisdom loaded from database')
+                } else {
+                    console.log('ℹ️ No previous wisdom found')
+                }
+            } catch (err) {
+                console.error('Error loading last wisdom:', err)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        loadLastWisdom()
+    }, [])
 
     const handleGenerateWisdom = async () => {
         setError('')

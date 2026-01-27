@@ -1,20 +1,47 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import MonthSelector from '@/app/components/MonthSelector'
+import { InteractivePieChart } from '@/app/components/InteractivePieChart'
+import { getCategoryLabel } from '@/lib/categories'
 
 // Force dynamic rendering - no caching
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// Category color mapping
+// Portuguese category mapping
+const CATEGORY_LABEL_MAP: Record<string, string> = {
+    'food': 'Alimentação',
+    'transport': 'Transporte',
+    'housing': 'Moradia',
+    'health': 'Saúde',
+    'shopping': 'Compras',
+    'finance': 'Finanças',
+    'leisure': 'Lazer',
+    'education': 'Educação',
+    'income': 'Receitas',
+    'investment': 'Investimento',
+    'transfer': 'Transferência',
+    'other': 'Outros',
+}
+
+function translateCategory(category: string): string {
+    const lowerCategory = category.toLowerCase()
+    return CATEGORY_LABEL_MAP[lowerCategory] || category
+}
+
+// Category color mapping for charts
 const categoryColors: Record<string, string> = {
-    'Alimentação': '#10b981', // green
-    'Lazer': '#14b8a6', // teal
-    'Saúde': '#0ea5e9', // sky
-    'Transporte': '#8b5cf6', // violet
-    'Moradia': '#f59e0b', // amber
-    'Educação': '#3b82f6', // blue
-    'Outros': '#6b7280', // gray
+    'Alimentação': '#F97316', // Orange
+    'Transporte': '#06B6D4', // Cyan
+    'Moradia': '#8B5CF6', // Violet
+    'Saúde': '#10B981', // Emerald
+    'Lazer': '#EAB308', // Yellow
+    'Educação': '#3B82F6', // Blue
+    'Compras': '#EC4899', // Pink
+    'Investimento': '#8B5CF6', // Violet
+    'Outros': '#94A3B8', // Slate
+    'Transferência': '#64748B', // Slate
+    'Finanças': '#64748B', // Slate
 }
 
 function getCategoryColor(category: string): string {
@@ -55,13 +82,20 @@ export default async function DiagnosisPage(props: PageProps) {
         .lte('date', monthEndStr)
 
     // Calculate totals and categories
-    const totalGastos = expenses?.reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
+    const totalGastos = expenses?.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
 
-    // Group by category
+    // Group by category (with Portuguese translation)
     const categoryTotals: Record<string, number> = {}
     expenses?.forEach(expense => {
-        const cat = expense.category || 'Outros'
-        categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(expense.amount)
+        const cat = translateCategory(expense.category || 'Outros')
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + Math.abs(parseFloat(expense.amount))
+    })
+
+    // Group by subcategory
+    const subcategoryTotals: Record<string, number> = {}
+    expenses?.forEach(expense => {
+        const subcat = expense.subcategory || 'Sem subcategoria'
+        subcategoryTotals[subcat] = (subcategoryTotals[subcat] || 0) + Math.abs(parseFloat(expense.amount))
     })
 
     // Sort categories by amount (descending)
@@ -71,6 +105,23 @@ export default async function DiagnosisPage(props: PageProps) {
             category,
             amount,
             percentage: totalGastos > 0 ? (amount / totalGastos) * 100 : 0,
+        }))
+
+    // Prepare data for Recharts
+    const categoryChartData = sortedCategories.map(cat => ({
+        name: cat.category,
+        value: cat.amount,
+        percentage: cat.percentage.toFixed(1),
+        fill: getCategoryColor(cat.category)
+    }))
+
+    const subcategoryChartData = Object.entries(subcategoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10) // Top 10 subcategories
+        .map(([name, value]) => ({
+            name,
+            value,
+            percentage: totalGastos > 0 ? ((value / totalGastos) * 100).toFixed(1) : '0',
         }))
 
     // Find villain (highest spending category)
@@ -142,6 +193,25 @@ export default async function DiagnosisPage(props: PageProps) {
                                         {selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear() ? 'Este Mês' : `${selectedMonth}/${selectedYear}`}
                                     </span>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Visual Breakdown Section with Charts */}
+                        <div className="space-y-4">
+                            <h2 className="text-xl font-bold text-gray-900">Detalhamento Visual</h2>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Category Chart */}
+                                <InteractivePieChart
+                                    data={categoryChartData}
+                                    title="Por Categorias"
+                                />
+
+                                {/* Subcategory Chart */}
+                                <InteractivePieChart
+                                    data={subcategoryChartData}
+                                    title="Por Subcategorias (Top 10)"
+                                />
                             </div>
                         </div>
 

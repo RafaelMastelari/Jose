@@ -146,25 +146,47 @@ RETORNE APENAS O JSON, NADA MAIS.`
 
         console.log('📝 Raw response:', text)
 
-        // Parse JSON
-        const wisdom: StructuredWisdom = JSON.parse(text)
+        // Parse and validate JSON
+        const wisdomData: StructuredWisdom = JSON.parse(text)
 
         // Validate structure
-        if (!wisdom.verse || !wisdom.verse.text || !wisdom.verse.reference) {
+        if (!wisdomData.verse || !wisdomData.verse.text || !wisdomData.verse.reference) {
             throw new Error('Invalid verse structure')
         }
-        if (!Array.isArray(wisdom.tips) || wisdom.tips.length !== 3) {
+        if (!Array.isArray(wisdomData.tips) || wisdomData.tips.length !== 3) {
             throw new Error('Invalid tips structure')
         }
 
-        console.log('✅ Structured wisdom generated successfully')
+        console.log('✅ Wisdom generated successfully')
+        console.log('📖 Verse:', wisdomData.verse.reference)
+        console.log('💡 Tips count:', wisdomData.tips.length)
+
+        // SAVE TO DATABASE for persistence
+        try {
+            const { error: insertError } = await supabase
+                .from('wisdom_history')
+                .insert({
+                    user_id: user.id,
+                    content: wisdomData
+                })
+
+            if (insertError) {
+                console.error('⚠️ Failed to save wisdom to database:', insertError.message)
+                // Don't fail the request, just log the error
+            } else {
+                console.log('💾 Wisdom saved to database')
+            }
+        } catch (dbError) {
+            console.error('⚠️ Database save error:', dbError)
+            // Don't fail the request, just log the error
+        }
 
         return {
             success: true,
-            wisdom,
+            wisdom: wisdomData,
         }
     } catch (error: any) {
-        console.error('❌ Error generating wisdom:', error)
+        console.error('❌ Error generating wisdom:', error.message)
 
         // Handle rate limit (429) error
         if (error.status === 429 || error.message?.includes('429')) {
