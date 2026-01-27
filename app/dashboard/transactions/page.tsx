@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { getTransactions, deleteTransaction, updateTransactionWithLearning } from '@/app/actions/transaction-actions'
 import { TransactionCard } from '@/app/components/TransactionCard'
 import EditTransactionModal from '@/app/components/EditTransactionModal'
 import { ActionDrawer } from '@/app/components/ActionDrawer'
 import { SelectionHeader } from '@/app/components/SelectionHeader'
+import { getAllCategories } from '@/lib/categories'
 
 interface Transaction {
     id: string
@@ -16,15 +18,22 @@ interface Transaction {
     amount: number
     type: 'income' | 'expense' | 'investment' | 'transfer'
     category: string
-    created_at: string
     updated_at: string
 }
 
 export default function TransactionsPage() {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
-    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1)
-    const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+
+    // Filters from URL or defaults
+    const [currentMonth, setCurrentMonth] = useState(Number(searchParams.get('month')) || new Date().getMonth() + 1)
+    const [currentYear, setCurrentYear] = useState(Number(searchParams.get('year')) || new Date().getFullYear())
+    const [filterType, setFilterType] = useState(searchParams.get('type') || 'all')
+    const [filterCategory, setFilterCategory] = useState(searchParams.get('category') || 'all')
 
     // Edit and selection state
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
@@ -35,16 +44,29 @@ export default function TransactionsPage() {
 
     const [error, setError] = useState('')
 
+    // Update URL when filters change
+    const updateUrl = (updates: Record<string, string | number>) => {
+        const params = new URLSearchParams(searchParams.toString())
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === 'all' || value === null) {
+                params.delete(key)
+            } else {
+                params.set(key, String(value))
+            }
+        })
+        router.push(`${pathname}?${params.toString()}`)
+    }
+
     // Load transactions
     useEffect(() => {
         loadTransactions()
-    }, [currentMonth, currentYear])
+    }, [currentMonth, currentYear, filterType, filterCategory])
 
     const loadTransactions = async () => {
         setLoading(true)
         setError('')
 
-        const result = await getTransactions(currentMonth, currentYear)
+        const result = await getTransactions(currentMonth, currentYear, filterType, filterCategory)
 
         if (result.success) {
             setTransactions(result.data || [])
@@ -55,23 +77,48 @@ export default function TransactionsPage() {
         setLoading(false)
     }
 
+    // Filter handlers
+    const handleMonthChange = (newMonth: number, newYear: number) => {
+        setCurrentMonth(newMonth)
+        setCurrentYear(newYear)
+        updateUrl({ month: newMonth, year: newYear })
+    }
+
+    const handleFilterTypeChange = (newType: string) => {
+        setFilterType(newType)
+        updateUrl({ type: newType })
+    }
+
+    const handleFilterCategoryChange = (newCategory: string) => {
+        setFilterCategory(newCategory)
+        updateUrl({ category: newCategory })
+    }
+
+    const clearFilters = () => {
+        setFilterType('all')
+        setFilterCategory('all')
+        updateUrl({ type: 'all', category: 'all' })
+    }
+
     // Month navigation
     const goToPreviousMonth = () => {
-        if (currentMonth === 1) {
-            setCurrentMonth(12)
-            setCurrentYear(currentYear - 1)
-        } else {
-            setCurrentMonth(currentMonth - 1)
+        let newMonth = currentMonth - 1
+        let newYear = currentYear
+        if (newMonth === 0) {
+            newMonth = 12
+            newYear -= 1
         }
+        handleMonthChange(newMonth, newYear)
     }
 
     const goToNextMonth = () => {
-        if (currentMonth === 12) {
-            setCurrentMonth(1)
-            setCurrentYear(currentYear + 1)
-        } else {
-            setCurrentMonth(currentMonth + 1)
+        let newMonth = currentMonth + 1
+        let newYear = currentYear
+        if (newMonth === 13) {
+            newMonth = 1
+            newYear += 1
         }
+        handleMonthChange(newMonth, newYear)
     }
 
     const getMonthName = (month: number) => {
@@ -188,12 +235,14 @@ export default function TransactionsPage() {
         return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', weekday: 'short' })
     }
 
+    const categories = getAllCategories()
+
     return (
         <div className="min-h-screen pb-20 bg-[var(--color-background-ice)]">
             {/* Header with Month Selector */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto">
-                    <h1 className="text-2xl font-bold text-[var(--color-text-main)] mb-4">Histórico</h1>
+                <div className="max-w-4xl mx-auto space-y-4">
+                    <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Histórico</h1>
 
                     {/* Month/Year Navigator */}
                     <div className="flex items-center justify-between bg-[var(--color-background-ice)] rounded-lg p-3">
@@ -219,6 +268,45 @@ export default function TransactionsPage() {
                         >
                             <span className="material-symbols-outlined text-[var(--color-primary)]">chevron_right</span>
                         </button>
+                    </div>
+
+                    {/* Filters Control */}
+                    <div className="flex flex-wrap gap-2">
+                        {/* Type Filter */}
+                        <select
+                            value={filterType}
+                            onChange={(e) => handleFilterTypeChange(e.target.value)}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] block p-2.5 outline-none"
+                        >
+                            <option value="all">Todos os Tipos</option>
+                            <option value="income">Receitas</option>
+                            <option value="expense">Despesas</option>
+                            <option value="investment">Investimentos</option>
+                        </select>
+
+                        {/* Category Filter */}
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => handleFilterCategoryChange(e.target.value)}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] block p-2.5 outline-none"
+                        >
+                            <option value="all">Todas as Categorias</option>
+                            <option value="Ajuste">Ajuste de Saldo</option>
+                            {categories.map((cat) => (
+                                <option key={cat.key} value={cat.key}>
+                                    {cat.label}
+                                </option>
+                            ))}
+                        </select>
+
+                        {(filterType !== 'all' || filterCategory !== 'all') && (
+                            <button
+                                onClick={clearFilters}
+                                className="text-sm text-red-500 hover:text-red-700 font-medium px-2"
+                            >
+                                Limpar
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

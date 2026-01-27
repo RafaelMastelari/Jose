@@ -59,7 +59,7 @@ export default function EditTransactionModal({ transaction, onClose, onSuccess }
                 transaction.id,
                 {
                     category,
-                    subcategory: finalSubcategory || undefined
+                    subcategory: finalSubcategory || null
                 },
                 updateSimilar
             )

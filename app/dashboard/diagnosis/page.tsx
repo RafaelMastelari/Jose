@@ -81,51 +81,74 @@ export default async function DiagnosisPage(props: PageProps) {
         .gte('date', monthStartStr)
         .lte('date', monthEndStr)
 
-    // Calculate totals and categories
+    // Data structures for hierarchical chart
+    type ChartItem = {
+        name: string
+        value: number
+        fill?: string
+        percentage: number // Changed to number
+        subcategories?: ChartItem[]
+        transactions?: any[]
+    }
+
     const totalGastos = expenses?.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
 
-    // Group by category (with Portuguese translation)
-    const categoryTotals: Record<string, number> = {}
+    const hierarchicalData: Record<string, {
+        total: number
+        subcategories: Record<string, { total: number, transactions: any[] }>
+        transactions: any[]
+    }> = {}
+
+    // Process transactions
     expenses?.forEach(expense => {
         const cat = translateCategory(expense.category || 'Outros')
-        categoryTotals[cat] = (categoryTotals[cat] || 0) + Math.abs(parseFloat(expense.amount))
+        const subcat = expense.subcategory || 'Sem detalhe'
+
+        if (!hierarchicalData[cat]) {
+            hierarchicalData[cat] = {
+                total: 0,
+                subcategories: {},
+                transactions: []
+            }
+        }
+
+        // Add to category total
+        const amount = Math.abs(parseFloat(expense.amount))
+        hierarchicalData[cat].total += amount
+        hierarchicalData[cat].transactions.push(expense)
+
+        // Add to subcategory
+        if (!hierarchicalData[cat].subcategories[subcat]) {
+            hierarchicalData[cat].subcategories[subcat] = {
+                total: 0,
+                transactions: []
+            }
+        }
+        hierarchicalData[cat].subcategories[subcat].total += amount
+        hierarchicalData[cat].subcategories[subcat].transactions.push(expense)
     })
 
-    // Group by subcategory
-    const subcategoryTotals: Record<string, number> = {}
-    expenses?.forEach(expense => {
-        const subcat = expense.subcategory || 'Sem subcategoria'
-        subcategoryTotals[subcat] = (subcategoryTotals[subcat] || 0) + Math.abs(parseFloat(expense.amount))
-    })
-
-    // Sort categories by amount (descending)
-    const sortedCategories = Object.entries(categoryTotals)
-        .sort((a, b) => b[1] - a[1])
-        .map(([category, amount]) => ({
-            category,
-            amount,
-            percentage: totalGastos > 0 ? (amount / totalGastos) * 100 : 0,
-        }))
-
-    // Prepare data for Recharts
-    const categoryChartData = sortedCategories.map(cat => ({
-        name: cat.category,
-        value: cat.amount,
-        percentage: cat.percentage.toFixed(1),
-        fill: getCategoryColor(cat.category)
-    }))
-
-    const subcategoryChartData = Object.entries(subcategoryTotals)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10) // Top 10 subcategories
-        .map(([name, value]) => ({
-            name,
-            value,
-            percentage: totalGastos > 0 ? ((value / totalGastos) * 100).toFixed(1) : '0',
+    // Convert to array format for Recharts
+    const chartData: ChartItem[] = Object.entries(hierarchicalData)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([category, data]) => ({
+            name: category,
+            value: data.total,
+            fill: getCategoryColor(category),
+            percentage: totalGastos > 0 ? (data.total / totalGastos) * 100 : 0,
+            transactions: data.transactions,
+            subcategories: Object.entries(data.subcategories)
+                .sort((a, b) => b[1].total - a[1].total)
+                .map(([subName, subData]) => ({
+                    name: subName,
+                    value: subData.total,
+                    transactions: subData.transactions,
+                    percentage: data.total > 0 ? (subData.total / data.total) * 100 : 0
+                }))
         }))
 
     // Find villain (highest spending category)
-    const vilao = sortedCategories[0]
+    const vilao = chartData[0]
 
     // 6-month projection
     const projecao6Meses = totalGastos * 6
@@ -196,23 +219,19 @@ export default async function DiagnosisPage(props: PageProps) {
                             </div>
                         </div>
 
-                        {/* Visual Breakdown Section with Charts */}
+                        {/* Interactive Chart Section */}
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-gray-900">Detalhamento Visual</h2>
+                            <h2 className="text-xl font-bold text-gray-900">Análise Detalhada</h2>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Category Chart */}
-                                <InteractivePieChart
-                                    data={categoryChartData}
-                                    title="Por Categorias"
-                                />
+                            {/* One Dynamic Chart */}
+                            <InteractivePieChart
+                                data={chartData}
+                                title="Distribuição de Gastos"
+                            />
 
-                                {/* Subcategory Chart */}
-                                <InteractivePieChart
-                                    data={subcategoryChartData}
-                                    title="Por Subcategorias (Top 10)"
-                                />
-                            </div>
+                            <p className="text-xs text-center text-gray-500 italic">
+                                💡 Toque na fatia para ver subcategorias. Segure para ver transações.
+                            </p>
                         </div>
 
                         {/* Categories Breakdown */}
@@ -221,10 +240,10 @@ export default async function DiagnosisPage(props: PageProps) {
                                 Por Categoria
                             </h3>
                             <div className="space-y-4">
-                                {sortedCategories.slice(0, 3).map((cat, index) => (
+                                {chartData.slice(0, 3).map((cat, index) => (
                                     <div key={index}>
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-white">{cat.category}</span>
+                                            <span className="text-sm font-medium text-white">{cat.name}</span>
                                             <span className="text-sm font-bold text-[#4ADE80]">
                                                 {cat.percentage.toFixed(0)}%
                                             </span>
@@ -250,7 +269,7 @@ export default async function DiagnosisPage(props: PageProps) {
                                     </span>
                                 </div>
                                 <h3 className="text-2xl font-bold text-white mb-2">
-                                    Vilão: {vilao.category}
+                                    Vilão: {vilao.name}
                                 </h3>
                                 <p className="text-gray-300">
                                     <span className="text-3xl font-bold text-white">{vilao.percentage.toFixed(0)}%</span> dos seus gastos. Isso está drenando sua reserva.

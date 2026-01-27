@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { revalidatePath } from 'next/cache'
 
-interface Transaction {
+export interface Transaction {
     id: string
     user_id: string
     date: string
@@ -21,7 +21,7 @@ interface UpdateTransactionData {
     amount?: number
     type?: 'income' | 'expense' | 'investment' | 'transfer'
     category?: string
-    subcategory?: string
+    subcategory?: string | null
 }
 
 interface TransactionResult {
@@ -34,7 +34,12 @@ interface TransactionResult {
 /**
  * Get transactions with optional month/year filtering
  */
-export async function getTransactions(month?: number, year?: number): Promise<TransactionResult> {
+export async function getTransactions(
+    month?: number,
+    year?: number,
+    type?: string,
+    category?: string
+): Promise<TransactionResult> {
     try {
         const supabase = await createClient()
         const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -61,6 +66,16 @@ export async function getTransactions(month?: number, year?: number): Promise<Tr
             const endDateStr = endDate.toISOString().split('T')[0]
 
             query = query.gte('date', startDateStr).lte('date', endDateStr)
+        }
+
+        // Apply type filter
+        if (type && type !== 'all') {
+            query = query.eq('type', type)
+        }
+
+        // Apply category filter
+        if (category && category !== 'all') {
+            query = query.eq('category', category)
         }
 
         const { data, error } = await query
@@ -137,6 +152,13 @@ export async function updateTransaction(
     updateData: UpdateTransactionData
 ): Promise<TransactionResult> {
     try {
+        console.log('🔍 [updateTransaction] Received update data:', {
+            transactionId: id,
+            updateData,
+            subcategory: updateData.subcategory,
+            subcategoryType: typeof updateData.subcategory
+        })
+
         const supabase = await createClient()
         const { data: { user }, error: userError } = await supabase.auth.getUser()
 
@@ -162,24 +184,34 @@ export async function updateTransaction(
         }
 
         // Update transaction
+        const updatePayload = {
+            ...updateData,
+            updated_at: new Date().toISOString(),
+        }
+
+        console.log('📤 [updateTransaction] Sending to Supabase:', updatePayload)
+
         const { data, error } = await supabase
             .from('transactions')
-            .update({
-                ...updateData,
-                updated_at: new Date().toISOString(),
-            })
+            .update(updatePayload)
             .eq('id', id)
             .eq('user_id', user.id)
             .select()
             .single()
 
         if (error) {
-            console.error('Error updating transaction:', error)
+            console.error('❌ [updateTransaction] Supabase error:', error)
             return {
                 success: false,
                 error: 'Erro ao atualizar transação.',
             }
         }
+
+        console.log('✅ [updateTransaction] Success! Updated transaction:', {
+            id: data.id,
+            category: data.category,
+            subcategory: data.subcategory
+        })
 
         // Revalidate dashboard and transactions pages
         revalidatePath('/dashboard')
@@ -216,6 +248,14 @@ export async function updateTransactionWithLearning(
     updateSimilar: boolean = false
 ): Promise<TransactionResult & { updatedCount?: number }> {
     try {
+        console.log('🧠 [updateTransactionWithLearning] Called with:', {
+            transactionId: id,
+            updateData,
+            updateSimilar,
+            subcategory: updateData.subcategory,
+            subcategoryDefined: updateData.subcategory !== undefined
+        })
+
         const supabase = await createClient()
         const { data: { user }, error: userError } = await supabase.auth.getUser()
 
@@ -245,38 +285,50 @@ export async function updateTransactionWithLearning(
 
         // CASCADE UPDATE: Apply to similar transactions
         if (updateSimilar && updateData.category && updateData.category !== original.category) {
+            const cascadePayload = {
+                category: updateData.category,
+                subcategory: updateData.subcategory || null,
+                type: updateData.type || original.type,
+                updated_at: new Date().toISOString(),
+            }
+
+            console.log('🔄 [Cascade] Updating similar transactions with:', cascadePayload)
+
             const { count, error: cascadeError } = await supabase
                 .from('transactions')
-                .update({
-                    category: updateData.category,
-                    subcategory: updateData.subcategory || null,
-                    type: updateData.type || original.type,
-                    updated_at: new Date().toISOString(),
-                })
+                .update(cascadePayload)
                 .eq('user_id', user.id)
                 .eq('description', original.description)
 
             if (!cascadeError) {
                 updatedCount = count || 0
                 console.log(`✅ Cascade: Updated ${updatedCount} similar transactions`)
+            } else {
+                console.error('❌ [Cascade] Error:', cascadeError)
             }
         } else {
             // Single update
+            const singleUpdatePayload = {
+                ...updateData,
+                updated_at: new Date().toISOString(),
+            }
+
+            console.log('📝 [Single Update] Payload:', singleUpdatePayload)
+
             const { error: updateError } = await supabase
                 .from('transactions')
-                .update({
-                    ...updateData,
-                    updated_at: new Date().toISOString(),
-                })
+                .update(singleUpdatePayload)
                 .eq('id', id)
                 .eq('user_id', user.id)
 
             if (updateError) {
+                console.error('❌ [Single Update] Error:', updateError)
                 return {
                     success: false,
                     error: 'Erro ao atualizar transação.',
                 }
             }
+            console.log('✅ [Single Update] Success')
             updatedCount = 1
         }
 
@@ -390,6 +442,82 @@ export async function deleteTransaction(id: string): Promise<TransactionResult> 
         return {
             success: false,
             error: error.message || 'Erro ao excluir transação.',
+        }
+    }
+}
+
+/**
+ * Create a balance adjustment transaction
+ */
+export async function createBalanceAdjustment(difference: number): Promise<TransactionResult> {
+    try {
+        const supabase = await createClient()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+        if (userError || !user) {
+            return {
+                success: false,
+                error: 'Usuário não autenticado.',
+            }
+        }
+
+        const isIncome = difference > 0
+        const amount = Math.abs(difference)
+
+        // Check if there's already an adjustment today to prevent duplicates
+        const today = new Date().toISOString().split('T')[0]
+        const { data: existing } = await supabase
+            .from('transactions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .eq('description', 'Ajuste de Saldo')
+            .eq('amount', amount) // Check same amount to be safe
+            .single()
+
+        if (existing) {
+            return {
+                success: false,
+                error: 'Já existe um ajuste de saldo idêntico hoje.',
+            }
+        }
+
+        const { data, error } = await supabase
+            .from('transactions')
+            .insert({
+                user_id: user.id,
+                description: 'Ajuste de Saldo',
+                amount: amount,
+                type: isIncome ? 'income' : 'expense',
+                category: 'Ajuste',
+                subcategory: null,
+                date: today,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Error creating balance adjustment:', error)
+            return {
+                success: false,
+                error: 'Erro ao criar ajuste de saldo.',
+            }
+        }
+
+        revalidatePath('/dashboard')
+        revalidatePath('/dashboard/transactions')
+
+        return {
+            success: true,
+            transaction: data,
+        }
+    } catch (error: any) {
+        console.error('Error in createBalanceAdjustment:', error)
+        return {
+            success: false,
+            error: error.message || 'Erro ao criar ajuste.',
         }
     }
 }

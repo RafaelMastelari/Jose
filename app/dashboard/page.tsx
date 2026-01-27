@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import RecentActivity from '../components/RecentActivity'
+import { BalanceAdjuster } from '../components/BalanceAdjuster'
 
 // Helper to get category icon
 function getCategoryIcon(category: string, type: string) {
@@ -164,9 +165,12 @@ export default async function DashboardPage() {
                     {/* Saldo Atual */}
                     <div className="bg-white rounded-2xl p-6 shadow-[var(--shadow-card)] border border-gray-100 hover:shadow-lg transition-shadow">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-[var(--color-text-sub)] uppercase tracking-wide">
-                                Saldo Atual
-                            </h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-semibold text-[var(--color-text-sub)] uppercase tracking-wide">
+                                    Saldo Atual
+                                </h3>
+                                <BalanceAdjuster currentBalance={currentBalance} />
+                            </div>
                             <div className="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
                                 <span className="material-symbols-outlined text-[var(--color-primary)] !text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                                     account_balance_wallet
