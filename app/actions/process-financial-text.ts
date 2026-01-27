@@ -33,31 +33,7 @@ function slugify(text: string): string {
         .trim()
 }
 
-// Transfer detection: Check if transaction is between user's own accounts
-function isTransfer(description: string, userName: string): boolean {
-    const lowerDesc = description.toLowerCase()
-
-    // Check for user name in description (self-transfer)
-    if (userName && lowerDesc.includes(userName.toLowerCase())) {
-        return true
-    }
-
-    // Check for transfer keywords indicating same ownership
-    const transferKeywords = [
-        'mesma titularidade',
-        'transferência entre contas',
-        'transferencia entre contas',
-        'transf entre contas',
-        'ted própria',
-        'ted propria',
-        'pix próprio',
-        'pix proprio',
-        'conta própria',
-        'conta propria'
-    ]
-
-    return transferKeywords.some(keyword => lowerDesc.includes(keyword))
-}
+// Transfer logic removed as per user request (Simplification)
 
 // Investment categorization: Distinguish applications from redemptions
 function categorizeInvestment(description: string, amount: number): { type: 'investment', category: string } | null {
@@ -132,10 +108,10 @@ const monthMap: Record<string, number> = {
 function categorizeByKeyword(description: string): { type: 'income' | 'expense' | 'transfer' | 'investment', category: string } {
     const desc = description.toLowerCase()
 
-    // Transferência Nubank
+    // Transferência Nubank - Will be typed by amount later
     if (desc.includes('pix') || desc.includes('transferencia') || desc.includes('ted') ||
         desc.includes('transferência')) {
-        return { type: 'transfer', category: 'Transferência' }
+        return { type: 'expense', category: 'Transferência' }
     }
 
     // Investimento Nubank
@@ -421,28 +397,20 @@ TAREFA: Analise o extrato bancário abaixo e extraia TODAS as transações como 
 REGRAS AVANÇADAS DE CATEGORIZAÇÃO:
 
 1. TRANSFERÊNCIAS (type: 'transfer'):
-   - Transferências entre contas próprias do usuário
-   - Palavras-chave: "mesma titularidade", "entre contas", "TED própria", "PIX próprio"
-   - NÃO gera receita ou despesa real
 
-2. INVESTIMENTOS - APLICAÇÕES (type: 'investment', valor NEGATIVO):
-   - "Aplicação", "Apl CDB", "Apl RDB", "Poupança"
-   - Dinheiro SAINDO da conta para investir
-   - Mantenha o sinal negativo
 
-3. INVESTIMENTOS - RESGATES (type: 'investment', valor POSITIVO):
-   - "Resgate", "Resg CDB", "Resgate RDB", "Rendimento"
-   - Dinheiro VOLTANDO do investimento
-   - NÃO classifique como income (receita)
-   - Mantenha o sinal positivo
+1. INVESTIMENTOS (ÚNICA EXCEÇÃO):
+   - Aplicações (SAÍDA, negativo): "Aplicação", "CDB", "Poupança" -> type: 'investment'
+   - Resgates (ENTRADA, positivo): "Resgate", "Rendimento" -> type: 'investment'
 
-4. RECEITAS (type: 'income'):
-   - Salários, Freelance, Reembolsos, Vendas
-   - NÃO inclua resgates de investimento
+2. RECEITAS (type: 'income'):
+   - QUALQUER valor positivo (entrada) que não seja resgate de investimento.
+   - Salários, Pix recebido, Vendas, Transferências recebidas.
 
-5. DESPESAS (type: 'expense'):
-   - Alimentação, Transporte, Lazer, Moradia, Saúde, Educação
-   - NÃO inclua aplicações de investimento
+3. DESPESAS (type: 'expense'):
+   - QUALQUER valor negativo (saída) que não seja aplicação.
+   - Pix enviado, Compras, Boletos.
+   - NÃO USE 'transfer' PARA NADA. Use 'income' ou 'expense'.
 
 FORMATAÇÃO:
 - DATAS: Converta para YYYY-MM-DD (exemplo: "05/01/26" → "2026-01-05")
@@ -496,35 +464,28 @@ Resposta:`
             }
         }
 
-        // FETCH USER PROFILE for transfer detection
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single()
+        // Profile fetch removed (not needed for simplified logic)
 
-        const userName = profile?.full_name || ''
-        console.log(`👤 User: ${userName || 'No name set'}`)
-
-        // APPLY ADVANCED ACCOUNTING LOGIC: Transfer & Investment Detection
-        console.log('💰 Applying advanced accounting logic...')
+        // APPLY SIMPLIFIED ACCOUNTING LOGIC
+        console.log('💰 Applying simplified accounting logic (Income/Expense/Investment)...')
         for (const transaction of allTransactions) {
-            // 1. CHECK FOR TRANSFERS (self-transactions)
-            if (isTransfer(transaction.description, userName)) {
-                transaction.type = 'transfer'
-                transaction.category = 'transfer'
-                console.log(`  🔄 Transfer detected: "${transaction.description}"`)
-                continue // Skip further categorization
-            }
-
-            // 2. CHECK FOR INVESTMENTS (application vs redemption)
+            // 1. CHECK FOR INVESTMENTS (The only exception to the rule)
             const investmentResult = categorizeInvestment(transaction.description, transaction.amount)
             if (investmentResult) {
                 transaction.type = investmentResult.type
                 transaction.category = investmentResult.category
                 const flowType = transaction.amount > 0 ? 'Redemption' : 'Application'
                 console.log(`  📈 Investment ${flowType}: "${transaction.description}" (${transaction.amount})`)
-                continue // Skip further categorization
+                continue // Investment detected, skip standard rule
+            }
+
+            // 2. STANDARD RULE: Positive = Income, Negative = Expense
+            if (transaction.amount > 0) {
+                transaction.type = 'income'
+                // If category was wrongly set to expense/transfer, try to fix it or keep generic
+                if (transaction.category === 'Transferência') transaction.category = 'Receita' // Generic income
+            } else {
+                transaction.type = 'expense'
             }
         }
 
