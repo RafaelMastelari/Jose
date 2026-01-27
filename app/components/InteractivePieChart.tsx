@@ -216,7 +216,7 @@ export function InteractivePieChart({ data, title }: InteractivePieChartProps) {
                         <PieChart>
                             <Pie
                                 activeShape={renderActiveShape}
-                                activeIndex={activeIndex}
+                                {...{ activeIndex } as any}
                                 data={currentData}
                                 cx="50%"
                                 cy="50%"
