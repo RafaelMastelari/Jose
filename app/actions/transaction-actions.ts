@@ -186,12 +186,16 @@ export async function updateTransaction(
         // Update transaction
         // Force type based on category
         const finalCategory = updateData.category || existing.category
-        const forceType = deriveType(finalCategory)
+        const finalSubcategory = updateData.subcategory // Might be undefined
+
+        const forceType = deriveType(finalCategory, finalSubcategory)
+        const finalAmount = deriveSign(updateData.amount !== undefined ? updateData.amount : existing.amount, forceType, finalCategory)
 
         const updatePayload = {
             ...updateData,
             category: finalCategory,
             type: forceType,
+            amount: finalAmount,
             updated_at: new Date().toISOString(),
         }
 
@@ -249,14 +253,53 @@ const INCOME_CATEGORIES = ['salary', 'freelance', 'sales', 'income', 'receitas',
 const INVESTMENT_CATEGORIES = ['investment', 'investimento', 'investimentos']
 const TRANSFER_CATEGORIES = ['transfer', 'transferencia', 'transferência']
 
-function deriveType(category: string): string {
+// Helper to determine transaction type based on category AND subcategory
+function deriveType(category: string, subcategory?: string | null): 'income' | 'expense' | 'investment' | 'transfer' {
     const cat = category.toLowerCase().trim()
+    const sub = subcategory?.toLowerCase().trim() || ''
 
-    if (INCOME_CATEGORIES.some(c => cat.includes(c)) || cat === 'income' || cat === 'receitas') return 'income'
+    // 1. Investment Priority (Check subcategory first)
+    if (sub.includes('investimento') || sub.includes('aplicação') || sub.includes('cdb') ||
+        sub.includes('resgate') || sub.includes('rendimento')) {
+        return 'investment'
+    }
+
     if (INVESTMENT_CATEGORIES.some(c => cat.includes(c)) || cat === 'investment') return 'investment'
+
+    // 2. Income
+    if (INCOME_CATEGORIES.some(c => cat.includes(c)) || cat === 'income') return 'income'
+
+    // 3. Transfer
     if (TRANSFER_CATEGORIES.some(c => cat.includes(c)) || cat === 'transfer') return 'transfer'
 
+    // 4. Default to Expense
     return 'expense'
+}
+
+// Helper to determine amount sign based on Type and Context
+function deriveSign(currentAmount: number, type: string, category: string): number {
+    const abs = Math.abs(currentAmount)
+    const cat = category.toLowerCase().trim()
+
+    // INCOME is always POSITIVE
+    if (type === 'income') return abs
+
+    // EXPENSE is always NEGATIVE
+    if (type === 'expense') return -abs
+
+    // INVESTMENT: Depends on context (Redemption vs Application)
+    if (type === 'investment') {
+        // If the Main Category is "Receitas" (Income), it's a Redemption (Positive)
+        if (INCOME_CATEGORIES.some(c => cat.includes(c)) || cat === 'income') {
+            return abs // Redemption (+)
+        }
+        // Otherwise (Finanças, etc), it's an Application (Negative)
+        return -abs // Application (-)
+    }
+
+    // Transfer can be either, but usually logic handles it elsewhere. Default to negative if undefined?
+    // Maintaining original sign if unknown might be safer, but for now defaulting to negative for safety.
+    return -abs
 }
 
 /**
@@ -300,17 +343,20 @@ export async function updateTransactionWithLearning(
 
         console.log('Step 1: Normalization', { descriptionSlug, finalCategory, finalSubcategory })
 
-        // --- STEP 2: UPDATE CURRENT TRANSACTION (FORCE TYPE) ---
+        // --- STEP 2: UPDATE CURRENT TRANSACTION (FORCE TYPE & SIGN) ---
         // Logic: Income group forces type='income', else type='expense'
-        // RIGID TYPE DERIVATION
-        const forceType = deriveType(finalCategory)
+        // Investment logic: Finanças -> Application (-), Receitas -> Redemption (+)
+
+        const forceType = deriveType(finalCategory, finalSubcategory)
+        const finalAmount = deriveSign(updateData.amount !== undefined ? updateData.amount : original.amount, forceType, finalCategory)
 
         // Prepare payload
         const updatePayload = {
             ...updateData,
             category: finalCategory,
             subcategory: finalSubcategory,
-            type: forceType, // CRITICAL: Force type based on category
+            type: forceType, // CRITICAL: Force type based on category/subcategory
+            amount: finalAmount, // CRITICAL: Force sign based on type context
             updated_at: new Date().toISOString(),
         }
 
