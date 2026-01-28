@@ -92,7 +92,9 @@ export default async function DashboardPage() {
     // If I show -80, it means 80 invested.
     // Let's use the arithmetic sum for calculation but display strictly positive for the breakdown.
 
-    const netInvestment = investmentTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)
+    // Net Investment = Total Apps (Abs) - Total Redemptions.
+    // Invert the sum so that (Negative Apps) become Positive Savings
+    const netInvestment = -1 * investmentTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)
 
     // For "Current Balance", we simply sum EVERYTHING (Income - Expense + Investment Flow)
     // currentBalance = Income Abs - Expense Abs + Investment Flow
