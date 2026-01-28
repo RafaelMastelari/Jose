@@ -172,7 +172,7 @@ export async function updateTransaction(
         // Verify ownership before update
         const { data: existing } = await supabase
             .from('transactions')
-            .select('user_id, category')
+            .select('user_id, category, amount')
             .eq('id', id)
             .single()
 
