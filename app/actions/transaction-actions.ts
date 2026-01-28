@@ -620,10 +620,7 @@ export async function createBalanceAdjustment(difference: number): Promise<Trans
             success: true,
             transaction: data,
         }
-        return {
-            success: true,
-            transaction: data,
-        }
+
     } catch (error: any) {
         console.error('Error in createBalanceAdjustment:', error)
         return {
