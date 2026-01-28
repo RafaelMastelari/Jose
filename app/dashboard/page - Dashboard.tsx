@@ -60,50 +60,21 @@ export default async function DashboardPage() {
         .lte('date', monthEndStr)
         .order('date', { ascending: false })
 
-    // Calculate financial metrics with ADVANCED ACCOUNTING LOGIC (Using signed values now)
-    // Income = Sum of positive incomings
+    // Calculate financial metrics with ADVANCED ACCOUNTING LOGIC
     const totalIncome = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
-    // Expenses = Sum of negative outgoings (absolute for display)
     const totalExpenses = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
 
-    // NET INVESTMENT: Now summing signed values directly!
-    // Application (Negative) + Redemption (Positive)
+    // NET INVESTMENT: Applications (negative) - Redemptions (positive)
     const investmentTransactions = transactions?.filter(t => t.type === 'investment') || []
-
-    // Applications: Sum of negative values (displayed as positive in breakdown)
     const totalApplications = investmentTransactions
         .filter(t => parseFloat(t.amount) < 0)
         .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
-
-    // Redemptions: Sum of positive values
     const totalRedemptions = investmentTransactions
         .filter(t => parseFloat(t.amount) > 0)
         .reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
+    const netInvestment = totalApplications - totalRedemptions
 
-    // Net Investment = Redemptions - Applications (or Sum of all if using signs)
-    // Since Applications are negative in DB, just summing them works for "Asset Growth" logic if we consider applications as "assets gained"?
-    // User wants: (Resgates) - (Aplicações). Wait, standard accounting:
-    // Net Flow = Inflow - Outflow.
-    // If Result is Negative -> Net Invested (Good). If Positive -> Net Redeemed (Divestment).
-    // BUT User card is "Vacas Gordas" (Fat Cows). Usually implies "Total Accumulated" or "Net Value".
-    // Let's stick to standard flow: Net Investment = Total Apps (Abs) - Total Redemptions.
-    // OR User asked: "netInvestment seja: (Resgates) - (Aplicações Absolutas) OU soma aritmética"
-    // If I sum arithmetic: -100 (App) + 20 (Red) = -80. 
-    // If I show -80, it means 80 invested.
-    // Let's use the arithmetic sum for calculation but display strictly positive for the breakdown.
-
-    const netInvestment = investmentTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)
-
-    // For "Current Balance", we simply sum EVERYTHING (Income - Expense + Investment Flow)
-    // currentBalance = Income Abs - Expense Abs + Investment Flow
-    // BUT typically investment outflow reduces "Checking Balance".
-    // So yes, just sum everything if signs are correct (Income +, Expense -, Invest -, Redeem +)
-
-    // Re-calculating balance based on SIGNED sum of everything?
-    // transactions already have correct signs (Expense -, Income +, Invest -, Redeem +)
-    // So currentBalance = Sum of ALL transactions amounts
-
-    const currentBalance = transactions?.reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
+    const currentBalance = totalIncome - totalExpenses
     const monthlySpending = totalExpenses
 
     // Get recent transactions from ALL TIME (not just current month) for Activity widget

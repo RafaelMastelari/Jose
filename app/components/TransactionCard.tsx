@@ -103,9 +103,15 @@ export function TransactionCard({
                 {/* Line 1: Type and Value */}
                 <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-base text-gray-900">
-                        {TYPE_LABELS[transaction.type] || 'Outro'}
+                        {transaction.type === 'investment'
+                            ? (transaction.amount < 0 ? 'Aplicação' : 'Resgate')
+                            : (TYPE_LABELS[transaction.type] || 'Outro')}
                     </span>
-                    <span className={`font-bold text-lg ${TYPE_COLORS[transaction.type] || 'text-gray-600'}`}>
+                    <span className={`font-bold text-lg 
+                        ${transaction.type === 'investment'
+                            ? (transaction.amount < 0 ? 'text-blue-600' : 'text-orange-600')
+                            : (TYPE_COLORS[transaction.type] || 'text-gray-600')
+                        }`}>
                         {formatValue(transaction.amount)}
                     </span>
                 </div>
@@ -119,8 +125,14 @@ export function TransactionCard({
 
                 {/* Line 3: Category > Subcategory • Date */}
                 <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <span className="material-symbols-outlined !text-[16px]" style={{ color: categoryColor }}>
-                        {iconName}
+                    <span className="material-symbols-outlined !text-[16px]" style={{
+                        color: transaction.type === 'investment'
+                            ? (transaction.amount < 0 ? '#2563EB' : '#EA580C') // blue-600 : orange-600
+                            : categoryColor
+                    }}>
+                        {transaction.type === 'investment'
+                            ? (transaction.amount < 0 ? 'trending_up' : 'savings')
+                            : iconName}
                     </span>
                     <span>
                         {categoryLabel}

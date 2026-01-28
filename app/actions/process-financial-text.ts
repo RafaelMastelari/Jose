@@ -483,18 +483,42 @@ Resposta:`
             if (investmentResult) {
                 transaction.type = investmentResult.type
                 transaction.category = investmentResult.category
+
+                // FORCE SIGNS per user request:
+                // Application = Negative (Outflow)
+                // Redemption = Positive (Inflow)
+
+                const lowerDesc = transaction.description.toLowerCase()
+                const redemptionKeywords = ['resgate', 'resg', 'rendimento', 'resgate cdb', 'resgate rdb', 'dividendo']
+                const isRedemption = redemptionKeywords.some(kw => lowerDesc.includes(kw))
+
+                if (isRedemption) {
+                    transaction.amount = Math.abs(transaction.amount) // Force Positive
+                } else {
+                    transaction.amount = -Math.abs(transaction.amount) // Force Negative (Application)
+                }
+
                 const flowType = transaction.amount > 0 ? 'Redemption' : 'Application'
                 console.log(`  📈 Investment ${flowType}: "${transaction.description}" (${transaction.amount})`)
-                continue // Investment detected, skip standard rule
+                continue
             }
 
-            // 2. STANDARD RULE: Positive = Income, Negative = Expense
-            if (transaction.amount > 0) {
+            // 2. STANDARD RULE: 
+            // - If Income Keyword -> Force Positive
+            // - If Expense Keyword -> Force Negative
+            // - If No Keyword -> Trust Sign or Default?
+
+            // Re-use categorizeByKeyword to know intended type
+            const keywordType = categorizeByKeyword(transaction.description).type
+
+            if (keywordType === 'income') {
                 transaction.type = 'income'
-                // If category was wrongly set to expense/transfer, try to fix it or keep generic
-                if (transaction.category === 'Transferência') transaction.category = 'Receita' // Generic income
+                transaction.amount = Math.abs(transaction.amount) // Force Positive
+                // Fix generic transfer category
+                if (transaction.category === 'Transferência') transaction.category = 'Receita'
             } else {
                 transaction.type = 'expense'
+                transaction.amount = -Math.abs(transaction.amount) // Force Negative
             }
         }
 
