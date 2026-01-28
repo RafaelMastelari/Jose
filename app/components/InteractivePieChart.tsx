@@ -2,7 +2,15 @@
 
 import { useState, useRef, useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { ChartDetailsDrawer, ChartTransaction } from './ChartDetailsDrawer'
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
+import { ChartTransaction } from './ChartDetailsDrawer' // Keep ChartTransaction type if needed, or remove if not used. 
+// Actually we passed it to ChartDetailsDrawer, but we removed that usage.
+// Let's check where ChartTransaction is defined.
+// If it's exported from ChartDetailsDrawer, we can keep the import but remove the component import.
+// Or just redefine it if simple.
+// For now, let's keep the type import if needed or remove line.
+// But we removed `drawerData` state which used `ChartTransaction`.
+// So likely we don't need it.
 
 // Themed category colors for consistency
 const CATEGORY_COLORS: Record<string, string> = {
@@ -92,9 +100,9 @@ export function InteractivePieChart({ data, title }: InteractivePieChartProps) {
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
     const [isLongPress, setIsLongPress] = useState(false)
 
-    // Drawer state
-    const [drawerOpen, setDrawerOpen] = useState(false)
-    const [drawerData, setDrawerData] = useState<{ title: string, transactions: ChartTransaction[], color: string } | null>(null)
+    // Drawer state removed
+    // const [drawerOpen, setDrawerOpen] = useState(false)
+    // const [drawerData, setDrawerData] = useState<{ title: string, transactions: ChartTransaction[], color: string } | null>(null)
 
     // Ensure data has fill colors
     const enrichedData = useMemo(() => {
@@ -138,14 +146,21 @@ export function InteractivePieChart({ data, title }: InteractivePieChartProps) {
         setIsLongPress(false)
         longPressTimerRef.current = setTimeout(() => {
             setIsLongPress(true)
-            // Trigger Long Press Action
-            if (entry.transactions && entry.transactions.length > 0) {
-                setDrawerData({
-                    title: entry.name,
-                    transactions: entry.transactions,
-                    color: entry.fill || '#ccc'
-                })
-                setDrawerOpen(true)
+            // Long Press > 500ms
+            if (viewLevel === 'category' && entry.subcategories && entry.subcategories.length > 0) {
+                // Vibration feedback if available
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    navigator.vibrate(50)
+                }
+                // Drill down
+                setSelectedCategory(entry)
+                setViewLevel('subcategory')
+                setActiveIndex(0)
+            } else {
+                // Determine if we should vibrate to indicate "End of Line"
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    navigator.vibrate([50, 50, 50]) // Different pattern for end of line
+                }
             }
         }, 500) // 500ms for long press
     }
@@ -160,31 +175,28 @@ export function InteractivePieChart({ data, title }: InteractivePieChartProps) {
     const handleClick = (entry: ChartData, index: number) => {
         // Only if it wasn't a long press
         if (!isLongPress) {
-            if (viewLevel === 'category' && entry.subcategories && entry.subcategories.length > 0) {
-                // Drill down
-                setSelectedCategory(entry)
-                setViewLevel('subcategory')
-                setActiveIndex(0)
-            } else {
-                // Just highlight
-                setActiveIndex(index)
-            }
+            // Just highlight/tooltip
+            setActiveIndex(index)
         }
         setIsLongPress(false)
     }
 
-    // Touch events for mobile
+    // Touch events for mobile (mirror mouse events)
     const handleTouchStart = (entry: ChartData) => {
         setIsLongPress(false)
         longPressTimerRef.current = setTimeout(() => {
             setIsLongPress(true)
-            if (entry.transactions && entry.transactions.length > 0) {
-                setDrawerData({
-                    title: entry.name,
-                    transactions: entry.transactions,
-                    color: entry.fill || '#ccc'
-                })
-                setDrawerOpen(true)
+            if (viewLevel === 'category' && entry.subcategories && entry.subcategories.length > 0) {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    navigator.vibrate(50)
+                }
+                setSelectedCategory(entry)
+                setViewLevel('subcategory')
+                setActiveIndex(0)
+            } else {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    navigator.vibrate([50, 50, 50])
+                }
             }
         }, 500)
     }
@@ -194,7 +206,6 @@ export function InteractivePieChart({ data, title }: InteractivePieChartProps) {
             clearTimeout(longPressTimerRef.current)
             longPressTimerRef.current = null
         }
-        // e.preventDefault() // might interfere with scrolling
     }
 
     return (
@@ -279,17 +290,6 @@ export function InteractivePieChart({ data, title }: InteractivePieChartProps) {
                 <div className="text-center py-12 text-gray-500">
                     <p>Nenhum dado disponível</p>
                 </div>
-            )}
-
-            {/* Drill-down Drawer */}
-            {drawerData && (
-                <ChartDetailsDrawer
-                    isOpen={drawerOpen}
-                    onClose={() => setDrawerOpen(false)}
-                    title={drawerData.title}
-                    transactions={drawerData.transactions}
-                    color={drawerData.color}
-                />
             )}
         </div>
     )

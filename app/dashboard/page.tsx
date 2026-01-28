@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import RecentActivity from '../components/RecentActivity'
 import { BalanceAdjuster } from '../components/BalanceAdjuster'
+import { InvestmentAdjuster } from '../components/InvestmentAdjuster'
 
 // Helper to get category icon
 function getCategoryIcon(category: string, type: string) {

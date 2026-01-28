@@ -620,8 +620,99 @@ export async function createBalanceAdjustment(difference: number): Promise<Trans
             success: true,
             transaction: data,
         }
+        return {
+            success: true,
+            transaction: data,
+        }
     } catch (error: any) {
         console.error('Error in createBalanceAdjustment:', error)
+        return {
+            success: false,
+            error: error.message || 'Erro ao criar ajuste.',
+        }
+    }
+}
+
+/**
+ * Create an investment adjustment transaction
+ */
+export async function createInvestmentAdjustment(difference: number): Promise<TransactionResult> {
+    try {
+        const supabase = await createClient()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+        if (userError || !user) {
+            return {
+                success: false,
+                error: 'Usuário não autenticado.',
+            }
+        }
+
+        // Logic: 
+        // Difference = Real Value - Computed Value
+        // If Positive (Real > Computed): We have MORE money -> Need to ADD to investment.
+        // In our system, Net Investment = (-1 * Sum). 
+        // So to INCREASE Net Investment, we need a NEGATIVE transaction (Application).
+        // Difference +200 -> We need transaction of -200.
+        // If Negative (Real < Computed): We have LESS money -> Need to REMOVE from investment.
+        // Difference -200 -> We need transaction of +200 (Redemption).
+
+        // So Amount to insert = -Difference.
+
+        const amountToInsert = -difference
+        const isApplication = amountToInsert < 0 // If negative, it's application
+
+        // Check for duplicates
+        const today = new Date().toISOString().split('T')[0]
+        const { data: existing } = await supabase
+            .from('transactions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .eq('description', 'Ajuste Manual de Investimento')
+            .eq('amount', amountToInsert)
+            .single()
+
+        if (existing) {
+            return {
+                success: false,
+                error: 'Já existe um ajuste de investimento idêntico hoje.',
+            }
+        }
+
+        const { data, error } = await supabase
+            .from('transactions')
+            .insert({
+                user_id: user.id,
+                description: 'Ajuste Manual de Investimento',
+                amount: amountToInsert,
+                type: 'investment',
+                category: 'Ajuste', // Or 'Investimento'? 'Ajuste' is safer for filtering if needed
+                subcategory: null,
+                date: today,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Error creating investment adjustment:', error)
+            return {
+                success: false,
+                error: 'Erro ao criar ajuste de investimento.',
+            }
+        }
+
+        revalidatePath('/dashboard')
+        revalidatePath('/dashboard/transactions')
+
+        return {
+            success: true,
+            transaction: data,
+        }
+    } catch (error: any) {
+        console.error('Error in createInvestmentAdjustment:', error)
         return {
             success: false,
             error: error.message || 'Erro ao criar ajuste.',

@@ -52,14 +52,22 @@ export default function EditTransactionModal({ transaction, onClose, onSuccess }
         setError('')
 
         try {
-            // Use custom subcategory if selected, otherwise use dropdown value
-            const finalSubcategory = subcategory === 'custom' ? customSubcategory : subcategory
+            // Ensure we capture the custom value if 'custom' is selected OR if we are in custom mode
+            let finalSubcategory = subcategory;
+            if (subcategory === 'custom' || (isCustomSubcategory && customSubcategory)) {
+                finalSubcategory = customSubcategory
+            }
+
+            // Normalization
+            if (!finalSubcategory || finalSubcategory.trim() === '') {
+                finalSubcategory = null as any // Pass null to clear it
+            }
 
             const result = await updateTransactionWithLearning(
                 transaction.id,
                 {
                     category,
-                    subcategory: finalSubcategory || null
+                    subcategory: finalSubcategory
                 },
                 updateSimilar
             )
