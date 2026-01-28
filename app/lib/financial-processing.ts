@@ -561,15 +561,29 @@ Resposta:`
         }
 
         // Insert new transactions
-        const transactionsToInsert = newTransactions.map(t => ({
-            user_id: userId,
-            date: t.date,
-            description: t.description,
-            amount: t.amount,
-            type: t.type,
-            category: t.category,
-            subcategory: t.subcategory || null,
-        }))
+        const transactionsToInsert = newTransactions.map(t => {
+            // CRITICAL: Final Sign Check before Database Insertion
+            let finalAmount = t.amount
+            if (t.type === 'income') {
+                finalAmount = Math.abs(t.amount) // FORCE POSITIVE
+            } else if (t.type === 'expense') {
+                finalAmount = -Math.abs(t.amount) // FORCE NEGATIVE
+            }
+            // Investment: Respect current sign (already handled upstream)
+            // But just to be ultra safe, if it's investment:
+            // - If Application (should be negative) -> Leave as is
+            // - If Redemption (should be positive) -> Leave as is
+
+            return {
+                user_id: userId,
+                date: t.date,
+                description: t.description,
+                amount: finalAmount,
+                type: t.type,
+                category: t.category,
+                subcategory: t.subcategory || null,
+            }
+        })
 
         const { error: insertError } = await supabase
             .from('transactions')

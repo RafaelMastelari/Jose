@@ -62,7 +62,7 @@ export default async function DashboardPage() {
 
     // Calculate financial metrics with ADVANCED ACCOUNTING LOGIC (Using signed values now)
     // Income = Sum of positive incomings
-    const totalIncome = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0
+    const totalIncome = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
     // Expenses = Sum of negative outgoings (absolute for display)
     const totalExpenses = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0) || 0
 
