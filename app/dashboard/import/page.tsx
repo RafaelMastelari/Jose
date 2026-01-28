@@ -26,6 +26,38 @@ export default function ImportPage() {
     const [duplicates, setDuplicates] = useState<Transaction[]>([])
     const [isDragging, setIsDragging] = useState(false)
 
+    const [progress, setProgress] = useState(0)
+    const [loadingStage, setLoadingStage] = useState('Iniciando...')
+
+    // Simulated progress logic
+    const startProgressSimulation = () => {
+        setProgress(0)
+        setLoadingStage('Preparando arquivo...')
+
+        const interval = setInterval(() => {
+            setProgress(prev => {
+                // Natural deceleration curve: fast at start, very slow at end
+                let increment = 0
+                if (prev < 30) increment = 5        // Fast: Uploading
+                else if (prev < 60) increment = 2   // Medium: Analyzing
+                else if (prev < 80) increment = 1   // Slow: Categorizing
+                else if (prev < 95) increment = 0.5 // Very Slow: Finalizing
+
+                const newProgress = Math.min(prev + increment, 98) // Cap at 98%
+
+                // Update stage text based on progress
+                if (newProgress < 30) setLoadingStage('Lendo arquivo...')
+                else if (newProgress < 60) setLoadingStage('A Inteligência Artificial está analisando...')
+                else if (newProgress < 80) setLoadingStage('Categorizando transações...')
+                else setLoadingStage('Finalizando detalhes...')
+
+                return newProgress
+            })
+        }, 200)
+
+        return interval
+    }
+
     const handleAnalyze = async () => {
         setError('')
         setSuccess('')
@@ -38,28 +70,39 @@ export default function ImportPage() {
         }
 
         setIsAnalyzing(true)
+        const progressInterval = startProgressSimulation()
+
+        await new Promise(resolve => setTimeout(resolve, 0))
 
         try {
             const result = await processFinancialText(extractText)
 
             if (result.success) {
+                clearInterval(progressInterval)
+                setProgress(100)
+                setLoadingStage('Concluído!')
+
+                // Small delay to show 100%
+                await new Promise(r => setTimeout(r, 500))
+
                 setSuccess(result.message || 'Transações processadas com sucesso!')
                 setPreviewTransactions(result.transactions || [])
                 setDuplicates(result.duplicates || [])
 
-                // Redirect to dashboard after 2 seconds
                 setTimeout(() => {
                     router.push('/dashboard')
                     router.refresh()
                 }, 2000)
             } else {
+                clearInterval(progressInterval)
+                setIsAnalyzing(false) // Stop immediately on error
                 setError(result.error || 'Erro ao processar extrato.')
             }
         } catch (err: any) {
+            clearInterval(progressInterval)
+            setIsAnalyzing(false)
             setError('Erro ao processar extrato. Tente novamente.')
             console.error('Analysis error:', err)
-        } finally {
-            setIsAnalyzing(false)
         }
     }
 
@@ -69,7 +112,6 @@ export default function ImportPage() {
         setPreviewTransactions([])
         setDuplicates([])
 
-        // Validate file type specifically for clearer feedback
         const fileName = file.name.toLowerCase()
         if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
             setError('Arquivos Excel (.xlsx/.xls) ainda não são suportados. Por favor, salve seu arquivo como CSV e tente novamente.')
@@ -77,7 +119,8 @@ export default function ImportPage() {
         }
 
         setIsAnalyzing(true)
-        // Yield to allow UI to render the loading state immediately
+        const progressInterval = startProgressSimulation()
+
         await new Promise(resolve => setTimeout(resolve, 0))
 
         try {
@@ -87,23 +130,30 @@ export default function ImportPage() {
             const result = await uploadStatement(formData)
 
             if (result.success) {
+                clearInterval(progressInterval)
+                setProgress(100)
+                setLoadingStage('Concluído!')
+
+                await new Promise(r => setTimeout(r, 500))
+
                 setSuccess(result.message || 'Arquivo processado com sucesso!')
                 setPreviewTransactions(result.transactions || [])
                 setDuplicates((result as any).duplicates || [])
 
-                // Redirect to dashboard after 2 seconds
                 setTimeout(() => {
                     router.push('/dashboard')
                     router.refresh()
                 }, 2000)
             } else {
+                clearInterval(progressInterval)
+                setIsAnalyzing(false)
                 setError(result.error || 'Erro ao processar arquivo.')
             }
         } catch (err: any) {
+            clearInterval(progressInterval)
+            setIsAnalyzing(false)
             setError('Erro ao processar arquivo. Tente novamente.')
             console.error('Upload error:', err)
-        } finally {
-            setIsAnalyzing(false)
         }
     }
 
@@ -189,17 +239,18 @@ export default function ImportPage() {
                         </div>
 
                         <h2 className="text-xl font-bold text-gray-900 mb-2">
-                            Lendo seu arquivo...
+                            {loadingStage}
                         </h2>
 
-                        <p className="text-gray-600 mb-8">
-                            José está categorizando suas transações.
-                        </p>
-
-                        <div className="w-full bg-gray-100 rounded-full h-2 mb-2 overflow-hidden">
-                            <div className="h-full bg-[var(--color-primary)] rounded-full animate-[loading_2s_ease-in-out_infinite] w-1/3"></div>
+                        <div className="w-full bg-gray-100 rounded-full h-3 mb-2 overflow-hidden relative">
+                            <div
+                                className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-300 ease-out flex items-center justify-end pr-1"
+                                style={{ width: `${progress}%` }}
+                            >
+                                <div className="w-[1px] h-full bg-white/30 animate-[pulse_1s_infinite]"></div>
+                            </div>
                         </div>
-                        <p className="text-xs text-gray-400">Isso pode levar alguns segundos</p>
+                        <p className="text-xs text-gray-400 font-mono">{Math.round(progress)}%</p>
                     </div>
                 </div>
             )}
