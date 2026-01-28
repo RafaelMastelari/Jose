@@ -2,15 +2,7 @@
 
 import { useState, useRef, useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { ChartTransaction } from './ChartDetailsDrawer' // Keep ChartTransaction type if needed, or remove if not used. 
-// Actually we passed it to ChartDetailsDrawer, but we removed that usage.
-// Let's check where ChartTransaction is defined.
-// If it's exported from ChartDetailsDrawer, we can keep the import but remove the component import.
-// Or just redefine it if simple.
-// For now, let's keep the type import if needed or remove line.
-// But we removed `drawerData` state which used `ChartTransaction`.
-// So likely we don't need it.
+import { ChartTransaction } from './ChartDetailsDrawer'
 
 // Themed category colors for consistency
 const CATEGORY_COLORS: Record<string, string> = {
